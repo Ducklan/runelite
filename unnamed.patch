@@ -1,0 +1,2486 @@
+Index: runelite-client/src/main/java/net/runelite/client/plugins/runecraft/RunecraftPlugin.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-client/src/main/java/net/runelite/client/plugins/runecraft/RunecraftPlugin.java	(revision Local Version)
++++ runelite-client/src/main/java/net/runelite/client/plugins/runecraft/RunecraftPlugin.java	(revision Shelved Version)
+@@ -36,10 +36,12 @@
+ import net.runelite.api.ChatMessageType;
+ import net.runelite.api.Client;
+ import net.runelite.api.DecorativeObject;
++import net.runelite.api.EquipmentInventorySlot;
+ import net.runelite.api.GameState;
+ import net.runelite.api.InventoryID;
+ import net.runelite.api.Item;
+ import net.runelite.api.ItemID;
++import net.runelite.api.MenuEntry;
+ import net.runelite.api.NPC;
+ import net.runelite.api.NpcID;
+ import net.runelite.api.events.ChatMessage;
+@@ -48,29 +50,46 @@
+ import net.runelite.api.events.DecorativeObjectSpawned;
+ import net.runelite.api.events.GameStateChanged;
+ import net.runelite.api.events.ItemContainerChanged;
++import net.runelite.api.events.MenuEntryAdded;
+ import net.runelite.api.events.NpcDespawned;
+ import net.runelite.api.events.NpcSpawned;
+ import net.runelite.client.Notifier;
+ import net.runelite.client.config.ConfigManager;
+ import net.runelite.client.eventbus.Subscribe;
++import net.runelite.client.menus.MenuManager;
+ import net.runelite.client.plugins.Plugin;
+ import net.runelite.client.plugins.PluginDescriptor;
+ import net.runelite.client.ui.overlay.OverlayManager;
++import static net.runelite.client.util.MenuUtil.swap;
++import net.runelite.client.util.Text;
++
+ 
+ @PluginDescriptor(
+-	name = "Runecraft",
+-	description = "Show minimap icons and clickboxes for abyssal rifts",
+-	tags = {"abyssal", "minimap", "overlay", "rifts", "rc", "runecrafting"}
++		name = "Runecraft",
++		description = "Show minimap icons and clickboxes for abyssal rifts",
++		tags = {"abyssal", "minimap", "overlay", "rifts", "rc", "runecrafting"}
+ )
+ public class RunecraftPlugin extends Plugin
+ {
++	private static final int[] CASTLE_WARS = {9776};
++	private static final int[] FIRE_ALTAR = {10315};
++
++
+ 	private static final String POUCH_DECAYED_NOTIFICATION_MESSAGE = "Your rune pouch has decayed.";
+ 	private static final String POUCH_DECAYED_MESSAGE = "Your pouch has decayed through use.";
+ 	private static final List<Integer> DEGRADED_POUCHES = ImmutableList.of(
+-		ItemID.MEDIUM_POUCH_5511,
+-		ItemID.LARGE_POUCH_5513,
+-		ItemID.GIANT_POUCH_5515
++			ItemID.MEDIUM_POUCH_5511,
++			ItemID.LARGE_POUCH_5513,
++			ItemID.GIANT_POUCH_5515
+ 	);
++	private static final List<Integer> POUCHES = ImmutableList.of(
++			ItemID.SMALL_POUCH,
++			ItemID.MEDIUM_POUCH,
++			ItemID.LARGE_POUCH,
++			ItemID.GIANT_POUCH
++	);
++	private boolean wearingTiara;
++	private boolean wearingCape;
+ 
+ 	@Getter(AccessLevel.PACKAGE)
+ 	private final Set<DecorativeObject> abyssObjects = new HashSet<>();
+@@ -90,12 +109,18 @@
+ 	@Inject
+ 	private AbyssOverlay abyssOverlay;
+ 
++	@Inject
++	private RunecraftOverlay runecraftOverlay;
++
+ 	@Inject
+ 	private RunecraftConfig config;
+ 
+ 	@Inject
+ 	private Notifier notifier;
+ 
++	@Inject
++	private MenuManager menuManager;
++
+ 	@Provides
+ 	RunecraftConfig getConfig(ConfigManager configManager)
+ 	{
+@@ -107,6 +132,7 @@
+ 	{
+ 		overlayManager.add(abyssOverlay);
+ 		abyssOverlay.updateConfig();
++		overlayManager.add(runecraftOverlay);
+ 	}
+ 
+ 	@Override
+@@ -116,11 +142,29 @@
+ 		abyssObjects.clear();
+ 		darkMage = null;
+ 		degradedPouchInInventory = false;
++		overlayManager.remove(runecraftOverlay);
+ 	}
+ 
+ 	@Subscribe
+ 	public void onConfigChanged(ConfigChanged event)
+ 	{
++		if (!event.getGroup().equals("runecraft"))
++		{
++			return;
++		}
++
++		if (event.getKey().equals("essPouch"))
++		{
++			if (config.essPouch())
++			{
++				menuManager.addSwap("deposit", "pouch", 2, 57, "fill", "pouch", 9, 1007);
++			}
++			else
++			{
++				menuManager.removeSwap("deposit", "pouch", 2, 57, "fill", "pouch", 9, 1007);
++			}
++		}
++
+ 		abyssOverlay.updateConfig();
+ 	}
+ 
+@@ -141,6 +185,95 @@
+ 		}
+ 	}
+ 
++	@Subscribe
++	public void onMenuEntryAdded(MenuEntryAdded entry)
++	{
++		if (wearingCape || wearingTiara)
++		{
++			final String option = Text.removeTags(entry.getOption()).toLowerCase();
++			final String target = Text.removeTags(entry.getTarget()).toLowerCase();
++			final int id = entry.getIdentifier();
++
++			if (target.contains("ring of dueling") && option.contains("remove"))
++			{
++				if (client.getLocalPlayer().getWorldLocation().getRegionID() != 10315)
++				{ //changes duel ring teleport options based on location
++					swap(client, "duel arena", option, target);
++				}
++				else if (client.getLocalPlayer().getWorldLocation().getRegionID() == 10315)
++				{
++					swap(client, "castle wars", option, target);
++				}
++			}
++			else if (target.contains("crafting cape") && option.contains("remove")) //teleport for crafting cape
++			{
++				swap(client, "Teleport", option, target);
++			}
++			else if (target.contains("max cape") && option.contains("remove")) //teleport for max cape
++			{
++				swap(client, "Crafting Guild", option, target);
++			}
++			else if (target.contains("altar") && option.contains("craft")) // Don't accidentally click the altar to craft
++			{
++				hide(option, target, true);
++			}
++			else if (target.contains("pure") && option.contains("use")) // Don't accidentally use pure essence on altar
++			{
++				hide("use", target, true);
++				hide("drop", target, true);
++			}
++			else if (option.equals("fill") && id != 9)
++			{
++				swap(client, "empty", option, target);
++			}
++		}
++	}
++
++	private void hide(String option, String target, boolean contains)
++	{
++		final MenuEntry[] entries = client.getMenuEntries();
++		int index = searchIndex(entries, option, target, contains);
++		if (index < 0)
++		{
++			return;
++		}
++
++		MenuEntry[] newEntries = new MenuEntry[entries.length - 1];
++		int i2 = 0;
++
++		for (int i = 0; i < entries.length - 1; i++)
++		{
++			if (i == index)
++			{
++				continue;
++			}
++
++			newEntries[i2] = entries[i];
++			i2++;
++		}
++
++		client.setMenuEntries(newEntries);
++	}
++
++	private int searchIndex(MenuEntry[] entries, String option, String target, boolean contains)
++	{
++		for (int i = entries.length - 1; i >= 0; i--)
++		{
++			MenuEntry entry = entries[i];
++			String entryOption = Text.removeTags(entry.getOption()).toLowerCase();
++			String entryTarget = Text.removeTags(entry.getTarget()).toLowerCase();
++
++			if (entryOption.contains(option.toLowerCase())
++					&& (entryTarget.equals(target) || (entryTarget.contains(target) && contains)))
++			{
++				return i;
++			}
++		}
++
++		return -1;
++	}
++
++
+ 	@Subscribe
+ 	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event)
+ 	{
+@@ -178,13 +311,20 @@
+ 	@Subscribe
+ 	public void onItemContainerChanged(ItemContainerChanged event)
+ 	{
+-		if (event.getItemContainer() != client.getItemContainer(InventoryID.INVENTORY))
++		if (event.getItemContainer() == client.getItemContainer(InventoryID.INVENTORY))
+ 		{
+-			return;
+-		}
+ 
+-		final Item[] items = event.getItemContainer().getItems();
+-		degradedPouchInInventory = Stream.of(items).anyMatch(i -> DEGRADED_POUCHES.contains(i.getId()));
++			final Item[] items = event.getItemContainer().getItems();
++			degradedPouchInInventory = Stream.of(items).anyMatch(i -> DEGRADED_POUCHES.contains(i.getId()));
++		}
++		else if (event.getItemContainer() == client.getItemContainer(InventoryID.EQUIPMENT))
++		{
++			final Item[] items = event.getItemContainer().getItems();
++			wearingTiara = config.Lavas() && items[EquipmentInventorySlot.HEAD.getSlotIdx()].getId() == ItemID.FIRE_TIARA;
++			wearingCape = config.Lavas() && items[EquipmentInventorySlot.CAPE.getSlotIdx()].getId() == ItemID.RUNECRAFT_CAPE || config.Lavas() && items[EquipmentInventorySlot.CAPE.getSlotIdx()].getId() == ItemID.RUNECRAFT_CAPET || config.Lavas() && items[EquipmentInventorySlot.CAPE.getSlotIdx()].getId() == ItemID.MAX_CAPE_13342;
++
++			System.out.println("item changed" + wearingCape);
++		}
+ 	}
+ 
+ 	@Subscribe
+@@ -206,4 +346,4 @@
+ 			darkMage = null;
+ 		}
+ 	}
+-}
++}
+\ No newline at end of file
+Index: runelite-client/src/main/java/net/runelite/client/util/ColorUtil.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-client/src/main/java/net/runelite/client/util/ColorUtil.java	(revision Local Version)
++++ runelite-client/src/main/java/net/runelite/client/util/ColorUtil.java	(revision Shelved Version)
+@@ -178,7 +178,7 @@
+ 	 * Gets the Color from the passed int string.
+ 	 *
+ 	 * @param string The int to get a Color object from.
+-	 * @return       A Color of the int of color.
++	 * @return A Color of the int of color.
+ 	 */
+ 	public static Color fromString(String string)
+ 	{
+@@ -197,7 +197,7 @@
+ 	 * Gets the Color from the passed hex string.
+ 	 *
+ 	 * @param hex The hex to get a Color object from.
+-	 * @return    A Color of the hex code of color.
++	 * @return A Color of the hex code of color.
+ 	 */
+ 	public static Color fromHex(String hex)
+ 	{
+@@ -230,6 +230,7 @@
+ 
+ 	/**
+ 	 * Creates color from passed object hash code
++	 *
+ 	 * @param object object with hashCode
+ 	 * @return color
+ 	 */
+@@ -239,4 +240,32 @@
+ 		float h = (i % 360) / 360f;
+ 		return Color.getHSBColor(h, 1, 1);
+ 	}
++
++	/**
++	 * Modifies the alpha component on a Color
++	 *
++	 * @param color The color to set the alpha value on
++	 * @param alpha The alpha value to set on the color
++	 * @return color
++	 */
++	public static int setAlphaComponent(Color color, int alpha)
++	{
++		return setAlphaComponent(color.getRGB(), alpha);
++	}
++
++	/**
++	 * Modifies the alpha component on a Color
++	 *
++	 * @param color The color to set the alpha value on
++	 * @param alpha The alpha value to set on the color
++	 * @return color
++	 */
++	public static int setAlphaComponent(int color, int alpha)
++	{
++		if (alpha < 0 || alpha > 255)
++		{
++			throw new IllegalArgumentException("alpha must be between 0 and 255.");
++		}
++		return (color & 0x00ffffff) | (alpha << 24);
++	}
+ }
+Index: runelite-api/src/main/java/net/runelite/api/Projectile.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/Projectile.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/Projectile.java	(revision Shelved Version)
+@@ -42,6 +42,14 @@
+ 	 *
+ 	 * @return the original coordinate
+ 	 */
++
++	/**
++	 * Gets the actor that is targeted by this projectile.
++	 *
++	 * @return the target actor, or null if this projectile is an AoE attack
++	 */
++	Actor getInteracting();
++
+ 	int getX1();
+ 
+ 	/**
+Index: runelite-client/src/main/java/net/runelite/client/plugins/runecraft/RunecraftConfig.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-client/src/main/java/net/runelite/client/plugins/runecraft/RunecraftConfig.java	(revision Local Version)
++++ runelite-client/src/main/java/net/runelite/client/plugins/runecraft/RunecraftConfig.java	(revision Shelved Version)
+@@ -33,10 +33,10 @@
+ public interface RunecraftConfig extends Config
+ {
+ 	@ConfigItem(
+-		keyName = "showRifts",
+-		name = "Show Rifts in Abyss",
+-		description = "Configures whether the rifts in the abyss will be displayed",
+-		position = 3
++			keyName = "showRifts",
++			name = "Show Rifts in Abyss",
++			description = "Configures whether the rifts in the abyss will be displayed",
++			position = 3
+ 	)
+ 	default boolean showRifts()
+ 	{
+@@ -44,10 +44,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showAir",
+-		name = "Show Air rift",
+-		description = "Configures whether to display the air rift",
+-		position = 4
++			keyName = "showAir",
++			name = "Show Air rift",
++			description = "Configures whether to display the air rift",
++			position = 4
+ 	)
+ 	default boolean showAir()
+ 	{
+@@ -55,10 +55,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showBlood",
+-		name = "Show Blood rift",
+-		description = "Configures whether to display the Blood rift",
+-		position = 5
++			keyName = "showBlood",
++			name = "Show Blood rift",
++			description = "Configures whether to display the Blood rift",
++			position = 5
+ 	)
+ 	default boolean showBlood()
+ 	{
+@@ -66,10 +66,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showBody",
+-		name = "Show Body rift",
+-		description = "Configures whether to display the Body rift",
+-		position = 6
++			keyName = "showBody",
++			name = "Show Body rift",
++			description = "Configures whether to display the Body rift",
++			position = 6
+ 	)
+ 	default boolean showBody()
+ 	{
+@@ -77,10 +77,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showChaos",
+-		name = "Show Chaos rift",
+-		description = "Configures whether to display the Chaos rift",
+-		position = 7
++			keyName = "showChaos",
++			name = "Show Chaos rift",
++			description = "Configures whether to display the Chaos rift",
++			position = 7
+ 	)
+ 	default boolean showChaos()
+ 	{
+@@ -88,10 +88,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showCosmic",
+-		name = "Show Cosmic rift",
+-		description = "Configures whether to display the Cosmic rift",
+-		position = 8
++			keyName = "showCosmic",
++			name = "Show Cosmic rift",
++			description = "Configures whether to display the Cosmic rift",
++			position = 8
+ 	)
+ 	default boolean showCosmic()
+ 	{
+@@ -99,10 +99,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showDeath",
+-		name = "Show Death rift",
+-		description = "Configures whether to display the Death rift",
+-		position = 9
++			keyName = "showDeath",
++			name = "Show Death rift",
++			description = "Configures whether to display the Death rift",
++			position = 9
+ 	)
+ 	default boolean showDeath()
+ 	{
+@@ -110,10 +110,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showEarth",
+-		name = "Show Earth rift",
+-		description = "Configures whether to display the Earth rift",
+-		position = 10
++			keyName = "showEarth",
++			name = "Show Earth rift",
++			description = "Configures whether to display the Earth rift",
++			position = 10
+ 	)
+ 	default boolean showEarth()
+ 	{
+@@ -121,10 +121,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showFire",
+-		name = "Show Fire rift",
+-		description = "Configures whether to display the Fire rift",
+-		position = 11
++			keyName = "showFire",
++			name = "Show Fire rift",
++			description = "Configures whether to display the Fire rift",
++			position = 11
+ 	)
+ 	default boolean showFire()
+ 	{
+@@ -132,10 +132,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showLaw",
+-		name = "Show Law rift",
+-		description = "Configures whether to display the Law rift",
+-		position = 12
++			keyName = "showLaw",
++			name = "Show Law rift",
++			description = "Configures whether to display the Law rift",
++			position = 12
+ 	)
+ 	default boolean showLaw()
+ 	{
+@@ -143,10 +143,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showMind",
+-		name = "Show Mind rift",
+-		description = "Configures whether to display the Mind rift",
+-		position = 13
++			keyName = "showMind",
++			name = "Show Mind rift",
++			description = "Configures whether to display the Mind rift",
++			position = 13
+ 	)
+ 	default boolean showMind()
+ 	{
+@@ -154,10 +154,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showNature",
+-		name = "Show Nature rift",
+-		description = "Configures whether to display the Nature rift",
+-		position = 14
++			keyName = "showNature",
++			name = "Show Nature rift",
++			description = "Configures whether to display the Nature rift",
++			position = 14
+ 	)
+ 	default boolean showNature()
+ 	{
+@@ -165,10 +165,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showSoul",
+-		name = "Show Soul rift",
+-		description = "Configures whether to display the Soul rift",
+-		position = 15
++			keyName = "showSoul",
++			name = "Show Soul rift",
++			description = "Configures whether to display the Soul rift",
++			position = 15
+ 	)
+ 	default boolean showSoul()
+ 	{
+@@ -176,10 +176,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showWater",
+-		name = "Show Water rift",
+-		description = "Configures whether to display the Water rift",
+-		position = 16
++			keyName = "showWater",
++			name = "Show Water rift",
++			description = "Configures whether to display the Water rift",
++			position = 16
+ 	)
+ 	default boolean showWater()
+ 	{
+@@ -187,10 +187,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "showClickBox",
+-		name = "Show Rift click box",
+-		description = "Configures whether to display the click box of the rift",
+-		position = 17
++			keyName = "showClickBox",
++			name = "Show Rift click box",
++			description = "Configures whether to display the click box of the rift",
++			position = 17
+ 	)
+ 	default boolean showClickBox()
+ 	{
+@@ -198,10 +198,10 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "hightlightDarkMage",
+-		name = "Highlight Dark Mage NPC",
+-		description = "Configures whether to highlight the Dark Mage when pouches are degraded",
+-		position = 18
++			keyName = "hightlightDarkMage",
++			name = "Highlight Dark Mage NPC",
++			description = "Configures whether to highlight the Dark Mage when pouches are degraded",
++			position = 18
+ 	)
+ 	default boolean hightlightDarkMage()
+ 	{
+@@ -209,13 +209,33 @@
+ 	}
+ 
+ 	@ConfigItem(
+-		keyName = "degradingNotification",
+-		name = "Notify when pouch degrades",
+-		description = "Send a notification when a pouch degrades",
+-		position = 19
++			keyName = "degradingNotification",
++			name = "Notify when pouch degrades",
++			description = "Send a notification when a pouch degrades",
++			position = 19
+ 	)
+ 	default boolean degradingNotification()
+ 	{
+ 		return true;
+ 	}
+-}
++
++	@ConfigItem(
++			keyName = "Lavas",
++			name = "Lavas",
++			description = "Swaps Ring of dueling menu entry depending on location, requires fire tiara or RC cape to be worn."
++	)
++	default boolean Lavas()
++	{
++		return true;
++	}
++
++	@ConfigItem(
++			keyName = "essPouch",
++			name = "Swap essence pouch",
++			description = "Makes essence pouch left-click fill in bank"
++	)
++	default boolean essPouch()
++	{
++		return true;
++	}
++}
+\ No newline at end of file
+Index: runelite-api/src/main/java/net/runelite/api/AnimationID.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/AnimationID.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/AnimationID.java	(revision Shelved Version)
+@@ -22,7 +22,7 @@
+  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  */
+-package net.runelite.api;
++package net.runelite.api;;
+ 
+ /**
+  * Utility class used for mapping animation IDs.
+@@ -155,11 +155,29 @@
+ 	public static final int SAND_COLLECTION = 895;
+ 	public static final int PISCARILIUS_CRANE_REPAIR = 7199;
+ 	public static final int HOME_MAKE_TABLET = 4067;
++	public static final int THIEVING_STALL = 832;
++	public static final int PICKPOCKET_SUCCESS = 881;
++
++	//block animations for players and perhaps npcs as well?
++	public static final int BLOCK_DEFENDER = 4177;
++	public static final int BLOCK_NO_SHIELD = 420;
++	public static final int BLOCK_SHIELD = 1156;
++	public static final int BLOCK_SWORD = 388;
++	public static final int BLOCK_UNARMED = 424; // Same Animation as failed pickpocked
+ 
+ 	// NPC animations
+ 	public static final int TZTOK_JAD_MAGIC_ATTACK = 2656;
+ 	public static final int TZTOK_JAD_RANGE_ATTACK = 2652;
+ 	public static final int HELLHOUND_DEFENCE = 6566;
++	public static final int VORKATH_WAKE_UP = 7950;
++	public static final int VORKATH_DEATH = 7949;
++	public static final int VORKATH_SLASH_ATTACK = 7951;
++	public static final int VORKATH_ATTACK = 7952;
++	public static final int VORKATH_FIRE_BOMB_OR_SPAWN_ATTACK = 7960;
++	public static final int VORKATH_ACID_ATTACK = 7957;
++	public static final int BLACKJACK_KO = 838;
++	public static final int VETION_EARTHQUAKE = 5507;
++	public static final int ZULRAH_DEATH = 5804;
+ 
+ 	// Farming
+ 	public static final int FARMING_HARVEST_FRUIT_TREE = 2280;
+@@ -197,4 +215,57 @@
+ 
+ 	// POH Animations
+ 	public static final int INCENSE_BURNER = 3687;
+-}
++	public static final int LOW_LEVEL_MAGIC_ATTACK = 1162;
++	public static final int HIGH_LEVEL_MAGIC_ATTACK = 1167;
++	public static final int BLOWPIPE_ATTACK = 5061;
++
++	// Tekton
++	public static final int TEKTON_ANVIL = 7475;
++	public static final int TEKTON_AUTO1 = 7482;
++	public static final int TEKTON_AUTO2 = 7483;
++	public static final int TEKTON_AUTO3 = 7484;
++	public static final int TEKTON_FAST_AUTO1 = 7478;
++	public static final int TEKTON_FAST_AUTO2 = 7488;
++	public static final int TEKTON_ENRAGE_AUTO1 = 7492;
++	public static final int TEKTON_ENRAGE_AUTO2 = 7493;
++	public static final int TEKTON_ENRAGE_AUTO3 = 7494;
++
++	// Hydra
++	public static final int HYDRA_POISON_1 = 8234;
++	public static final int HYDRA_RANGED_1 = 8235;
++	public static final int HYDRA_MAGIC_1 = 8236;
++	public static final int HYDRA_1_1 = 8237;
++	public static final int HYDRA_1_2 = 8238;
++	public static final int HYDRA_LIGHTNING = 8241;
++	public static final int HYDRA_RANGED_2 = 8242;
++	public static final int HYDRA_MAGIC_2 = 8243;
++	public static final int HYDRA_2_1 = 8244;
++	public static final int HYDRA_2_2 = 8245;
++	public static final int HYDRA_FIRE = 8248;
++	public static final int HYDRA_RANGED_3 = 8249;
++	public static final int HYDRA_MAGIC_3 = 8250;
++	public static final int HYDRA_3_1 = 8251;
++	public static final int HYDRA_3_2 = 8252;
++	public static final int HYDRA_MAGIC_4 = 8254;
++	public static final int HYDRA_POISON_4 = 8254;
++	public static final int HYDRA_RANGED_4 = 8255;
++	public static final int HYDRA_4_1 = 8257;
++	public static final int HYDRA_4_2 = 8258;
++
++	// INFERNO animations
++	public static final int JAL_NIB = 7574;
++	public static final int JAL_MEJRAH = 7578;
++	public static final int JAL_AK_RANGE_ATTACK = 7581;
++	public static final int JAL_AK_MELEE_ATTACK = 7582;
++	public static final int JAL_AK_MAGIC_ATTACK = 7583;
++	public static final int JAL_IMKOT = 7597;
++	public static final int JAL_XIL_MELEE_ATTACK = 7604;
++	public static final int JAL_XIL_RANGE_ATTACK = 7605;
++	public static final int JAL_ZEK_MAGE_ATTACK = 7610;
++	public static final int JAL_ZEK_MELEE_ATTACK = 7612;
++	public static final int JALTOK_JAD_MELEE_ATTACK = 7590;
++	public static final int JALTOK_JAD_MAGE_ATTACK = 7592;
++	public static final int JALTOK_JAD_RANGE_ATTACK = 7593;
++	public static final int TZKAL_ZUK = 7566;
++	public static final int JAL_MEJJAK = 2858;
++}
+\ No newline at end of file
+Index: runelite-api/src/main/java/net/runelite/api/GraphicID.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/GraphicID.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/GraphicID.java	(revision Shelved Version)
+@@ -26,10 +26,9 @@
+ 
+ public class GraphicID
+ {
+-	public static final int WINE_MAKE = 47;
+ 	public static final int SPLASH = 85;
+-	public static final int TELEPORT = 111;
+ 	public static final int GREY_BUBBLE_TELEPORT = 86;
++	public static final int TELEPORT = 111;
+ 	public static final int ENTANGLE = 179;
+ 	public static final int SNARE = 180;
+ 	public static final int BIND = 181;
+@@ -39,6 +38,9 @@
+ 	public static final int ICE_BARRAGE = 369;
+ 	public static final int VENGEANCE_OTHER = 725;
+ 	public static final int VENGEANCE = 726;
++	public static final int NPC_CONTACT = 728;
++	public static final int POT_SHARE = 733;
++	public static final int BAKE_PIE = 746;
+ 	public static final int BOOK_HOME_TELEPORT_1 = 800;
+ 	public static final int BOOK_HOME_TELEPORT_2 = 802;
+ 	public static final int BOOK_HOME_TELEPORT_3 = 803;
+@@ -46,7 +48,7 @@
+ 	public static final int STAFF_OF_THE_DEAD = 1228;
+ 	public static final int IMBUED_HEART = 1316;
+ 	public static final int FLYING_FISH = 1387;
+-	public static final int NPC_CONTACT = 728;
+-	public static final int POT_SHARE = 733;
+-	public static final int BAKE_PIE = 746;
++	public static final int OLM_BURN = 1351;
++	public static final int OLM_TELEPORT = 1359;
++	public static final int XERIC_TELEPORT = 1612;
+ }
+Index: runelite-api/src/main/java/net/runelite/api/Varbits.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/Varbits.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/Varbits.java	(revision Shelved Version)
+@@ -217,6 +217,7 @@
+ 	 * Barbarian Assault
+ 	 */
+ 	IN_GAME_BA(3923),
++	BA_GC(4768),
+ 
+ 	/**
+ 	 * 0 = Outside wilderness
+@@ -232,12 +233,12 @@
+ 
+ 	/**
+ 	 * Blast Furnace Bar Dispenser
+-	 *
++	 * <p>
+ 	 * These are the expected values:
+-	 *	0 = No bars being processed
+-	 *	1 = Ores are being processed on the conveyor belt, bar dispenser cannot be checked
+-	 *	2 = Bars are cooling down
+-	 *	3 = Bars can be collected
++	 * 0 = No bars being processed
++	 * 1 = Ores are being processed on the conveyor belt, bar dispenser cannot be checked
++	 * 2 = Bars are cooling down
++	 * 3 = Bars can be collected
+ 	 */
+ 	BAR_DISPENSER(936),
+ 
+@@ -249,11 +250,11 @@
+ 
+ 	/**
+ 	 * Experience tracker
+-	 *
++	 * <p>
+ 	 * EXPERIENCE_TRACKER_POSITION expected values:
+-	 *   0 = Right
+-	 *   1 = Middle
+-	 *   2 = Left
++	 * 0 = Right
++	 * 1 = Middle
++	 * 2 = Left
+ 	 */
+ 	EXPERIENCE_TRACKER_POSITION(4692),
+ 	EXPERIENCE_TRACKER_COUNTER(4697),
+@@ -270,7 +271,7 @@
+ 	TITHE_FARM_SACK_AMOUNT(4900),
+ 	TITHE_FARM_SACK_ICON(5370),
+ 	TITHE_FARM_POINTS(4893),
+-	
++
+ 	/**
+ 	 * Blast Mine
+ 	 */
+@@ -292,12 +293,14 @@
+ 	 * Theatre of Blood 1=In Party, 2=Inside/Spectator, 3=Dead Spectating
+ 	 */
+ 	THEATRE_OF_BLOOD(6440),
++	BLOAT_DOOR(6447),
+ 
+ 	/**
+ 	 * Nightmare Zone
+ 	 */
+ 	NMZ_ABSORPTION(3956),
+ 	NMZ_POINTS(3949),
++	NMZ_OVERLOAD(3955),
+ 
+ 	/**
+ 	 * Blast Furnace
+@@ -327,7 +330,7 @@
+ 	 * Pyramid plunder
+ 	 */
+ 	PYRAMID_PLUNDER_TIMER(2375),
+-	PYRAMID_PLUNDER_ROOM(2377),
++	PYRAMID_PLUNDER_ROOM(2374),
+ 
+ 	/**
+ 	 * Barrows
+@@ -354,6 +357,11 @@
+ 	 */
+ 	MULTICOMBAT_AREA(4605),
+ 
++	/**
++	 * In the Wilderness
++	 */
++	IN_THE_WILDERNESS(5963),
++
+ 	/**
+ 	 * Kingdom Management
+ 	 */
+@@ -373,11 +381,12 @@
+ 	DAILY_ESSENCE_COLLECTED(4547),
+ 	DAILY_RUNES_COLLECTED(4540),
+ 	DAILY_SAND_COLLECTED(4549),
++	DAILY_ARROWS_STATE(4563),
+ 	DAILY_FLAX_STATE(4559),
+ 	/**
+ 	 * This varbit tracks how much bonemeal has been redeemed from Robin
+ 	 * The player gets 13 for each diary completed above and including Medium, for a maxiumum of 39
+- 	*/
++	 */
+ 	DAILY_BONEMEAL_STATE(4543),
+ 
+ 	DAILY_DYNAMITE_COLLECTED(7939),
+@@ -433,11 +442,16 @@
+ 	 */
+ 	ACCOUNT_TYPE(1777),
+ 
++	/**
++	 * Varbit used for Slayer reward points
++	 */
++	SLAYER_REWARD_POINTS(4068),
++
+ 	/**
+ 	 * The varbit that stores the oxygen percentage for player
+ 	 */
+ 	OXYGEN_LEVEL(5811),
+-	
++
+ 	/**
+ 	 * Corp beast damage
+ 	 */
+@@ -464,6 +478,20 @@
+ 	 */
+ 	VENGEANCE_COOLDOWN(2451),
+ 
++	/**
++	 * 0 = standard
++	 * 1 = ancients
++	 * 2 = lunars
++	 * 3 = arrceus
++	 **/
++	SPELLBOOK_ID(4070),
++
++	/**
++	 * 0 = no
++	 * 1 = yes
++	 **/
++	SPELLBOOK_HIDDEN(6718),
++
+ 	/**
+ 	 * Amount of items in each bank tab
+ 	 */
+@@ -484,6 +512,13 @@
+ 	 */
+ 	GE_OFFER_CREATION_TYPE(4397),
+ 
++
++	/**
++	 * Spells being auto-casted
++	 */
++	AUTO_CAST_SPELL(276),
++
++
+ 	/**
+ 	 * The active tab within the quest interface
+ 	 */
+@@ -495,10 +530,122 @@
+ 	EXPLORER_RING_ALCHTYPE(5398),
+ 	EXPLORER_RING_TELEPORTS(4552),
+ 	EXPLORER_RING_ALCHS(4554),
+-	EXPLORER_RING_RUNENERGY(4553);
++	EXPLORER_RING_RUNENERGY(4553),
++
++	/**
++	 * Temple Trekking
++	 */
++	TREK_POINTS(1955),
++	TREK_STARTED(1956),
++	TREK_EVENT(1958),
++	TREK_STATUS(6719),
++	BLOAT_ENTERED_ROOM(6447),
++
++	/**
++	 * f2p Quest varbits, these don't hold the completion value.
++	 */
++	QUEST_DEMON_SLAYER(2561),
++	QUEST_GOBLIN_DIPLOMACY(2378),
++	QUEST_MISTHALIN_MYSTERY(3468),
++	QUEST_THE_CORSAIR_CURSE(6071),
++	QUEST_X_MARKS_THE_SPOT(8063),
++
++	/**
++	 * member Quest varbits, these don't hold the completion value.
++	 */
++	QUEST_ANIMAL_MAGNETISM(3185),
++	QUEST_BETWEEN_A_ROCK(299),
++	QUEST_CONTACT(3274),
++	QUEST_ZOGRE_FLESH_EATERS(487),
++	QUEST_DARKNESS_OF_HALLOWVALE(2573),
++	QUEST_DEATH_TO_THE_DORGESHUUN(2258),
++	QUEST_DESERT_TREASURE(358),
++	QUEST_DEVIOUS_MINDS(1465),
++	QUEST_EAGLES_PEAK(2780),
++	QUEST_ELEMENTAL_WORKSHOP_II(2639),
++	QUEST_ENAKHRAS_LAMENT(1560),
++	QUEST_ENLIGHTENED_JOURNEY(2866),
++	QUEST_THE_EYES_OF_GLOUPHRIE(2497),
++	QUEST_FAIRYTALE_I_GROWING_PAINS(1803),
++	QUEST_FAIRYTALE_II_CURE_A_QUEEN(2326),
++	QUEST_THE_FEUD(334), // 14 = able to pickpocket
++	QUEST_FORGETTABLE_TALE(822),
++	QUEST_GARDEN_OF_TRANQUILLITY(961),
++	QUEST_GHOSTS_AHOY(217),
++	QUEST_THE_GIANT_DWARF(571),
++	QUEST_THE_GOLEM(346),
++	QUEST_HORROR_FROM_THE_DEEP(34),
++	QUEST_ICTHLARINS_LITTLE_HELPER(418),
++	QUEST_IN_AID_OF_THE_MYREQUE(1990),
++	QUEST_THE_LOST_TRIBE(532),
++	QUEST_LUNAR_DIPLOMACY(2448),
++	QUEST_MAKING_HISTORY(1383),
++	QUEST_MOUNTAIN_DAUGHTER(260),
++	QUEST_MOURNINGS_ENDS_PART_II(1103),
++	QUEST_MY_ARMS_BIG_ADVENTURE(2790),
++	QUEST_RATCATCHERS(1404),
++	QUEST_RECIPE_FOR_DISASTER(1850),
++	QUEST_RECRUITMENT_DRIVE(657),
++	QUEST_ROYAL_TROUBLE(2140),
++	QUEST_THE_SLUG_MENACE(2610),
++	QUEST_SHADOW_OF_THE_STORM(1372),
++	QUEST_A_SOULS_BANE(2011),
++	QUEST_SPIRITS_OF_THE_ELID(1444),
++	QUEST_SWAN_SONG(2098),
++	QUEST_A_TAIL_OF_TWO_CATS(1028),
++	QUEST_TEARS_OF_GUTHIX(451),
++	QUEST_WANTED(1051),
++	QUEST_COLD_WAR(3293),
++	QUEST_THE_FREMENNIK_ISLES(3311),
++	QUEST_TOWER_OF_LIFE(3337),
++	QUEST_WHAT_LIES_BELOW(3523),
++	QUEST_OLAFS_QUEST(3534),
++	QUEST_ANOTHER_SLICE_OF_HAM(3550),
++	QUEST_DREAM_MENTOR(3618),
++	QUEST_GRIM_TALES(2783),
++	QUEST_KINGS_RANSOM(3888),
++	QUEST_MONKEY_MADNESS_II(5027),
++	QUEST_CLIENT_OF_KOUREND(5619),
++	QUEST_BONE_VOYAGE(5795),
++	QUEST_THE_QUEEN_OF_THIEVES(6037),
++	QUEST_THE_DEPTHS_OF_DESPAIR(6027),
++	QUEST_DRAGON_SLAYER_II(6104),
++	QUEST_TALE_OF_THE_RIGHTEOUS(6358),
++	QUEST_A_TASTE_OF_HOPE(6396),
++	QUEST_MAKING_FRIENDS_WITH_MY_ARM(6528),
++	QUEST_THE_ASCENT_OF_ARCEUUS(7856),
++	QUEST_THE_FORSAKEN_TOWER(7796),
++
++	/**
++	 * mini-quest varbits, these don't hold the completion value.
++	 */
++	QUEST_ARCHITECTURAL_ALLIANCE(4982),
++	QUEST_BEAR_YOUR_SOUL(5078),
++	QUEST_CURSE_OF_THE_EMPTY_LORD(821),
++	QUEST_ENCHANTED_KEY(1391),
++	QUEST_THE_GENERALS_SHADOW(3330),
++	QUEST_SKIPPY_AND_THE_MOGRES(1344),
++	QUEST_LAIR_OF_TARN_RAZORLOR(3290),
++	QUEST_FAMILY_PEST(5347),
++	QUEST_THE_MAGE_ARENA_II(6067),
++
++	/**
++	 * Active spellbook (see enumID)
++	 */
++	SPELLBOOK(4070),
++
++	/**
++	 * Spellbook filtering (1 = unfiltered, 0 = filtered)
++	 */
++	FILTER_SPELLBOOK(6718),
++
++	/**
++	 * POH Building mode (1 = yes, 0 = no)
++	 */
++	BUILDING_MODE(2176);
+ 
+ 	/**
+ 	 * The raw varbit ID.
+ 	 */
+ 	private final int id;
+-}
++}
+\ No newline at end of file
+Index: runelite-client/src/main/java/net/runelite/client/plugins/cooking/CookingPlugin.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-client/src/main/java/net/runelite/client/plugins/cooking/CookingPlugin.java	(revision Local Version)
++++ runelite-client/src/main/java/net/runelite/client/plugins/cooking/CookingPlugin.java	(revision Shelved Version)
+@@ -117,35 +117,6 @@
+ 		}
+ 	}
+ 
+-	@Subscribe
+-	public void onGraphicChanged(GraphicChanged graphicChanged)
+-	{
+-		Player player = client.getLocalPlayer();
+-
+-		if (graphicChanged.getActor() != player)
+-		{
+-			return;
+-		}
+-
+-		if (player.getGraphic() == GraphicID.WINE_MAKE && config.fermentTimer())
+-		{
+-			Optional<FermentTimer> fermentTimerOpt = infoBoxManager.getInfoBoxes().stream()
+-				.filter(FermentTimer.class::isInstance)
+-				.map(FermentTimer.class::cast)
+-				.findAny();
+-
+-			if (fermentTimerOpt.isPresent())
+-			{
+-				FermentTimer fermentTimer = fermentTimerOpt.get();
+-				fermentTimer.reset();
+-			}
+-			else
+-			{
+-				FermentTimer fermentTimer = new FermentTimer(itemManager.getImage(ItemID.JUG_OF_WINE), this);
+-				infoBoxManager.addInfoBox(fermentTimer);
+-			}
+-		}
+-	}
+ 
+ 	@Subscribe
+ 	public void onChatMessage(ChatMessage event)
+Index: runelite-api/src/main/java/net/runelite/api/widgets/Widget.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/widgets/Widget.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/widgets/Widget.java	(revision Shelved Version)
+@@ -26,8 +26,10 @@
+ 
+ import java.awt.Rectangle;
+ import java.util.Collection;
++
+ import net.runelite.api.FontTypeFace;
+ import net.runelite.api.Point;
++import net.runelite.api.SpriteID;
+ 
+ /**
+  * Represents an on-screen UI element that is drawn on the canvas.
+@@ -252,7 +254,7 @@
+ 	 * Gets the sprite ID displayed in the widget.
+ 	 *
+ 	 * @return the sprite ID
+-	 * @see net.runelite.api.SpriteID
++	 * @see SpriteID
+ 	 */
+ 	int getSpriteId();
+ 
+@@ -260,7 +262,7 @@
+ 	 * Sets the sprite ID displayed in the widget.
+ 	 *
+ 	 * @param spriteId the sprite ID
+-	 * @see net.runelite.api.SpriteID
++	 * @see SpriteID
+ 	 */
+ 	void setSpriteId(int spriteId);
+ 
+@@ -306,7 +308,7 @@
+ 	/**
+ 	 * Gets the width of the widget.
+ 	 * <p>
+-	 * If this widget is storing any {@link WidgetItem}s, this value is
++	 * If this widget is storing any {@link // WidgetItem}s, this value is
+ 	 * used to store the number of item slot columns.
+ 	 *
+ 	 * @return the width
+@@ -821,4 +823,24 @@
+ 	 * Can widgets under this widgets be scrolled in this widgets bounding box
+ 	 */
+ 	void setNoScrollThrough(boolean noScrollThrough);
+-}
++
++	/**
++	 * Changes the parent ID for the widget
++	 */
++	void setParentId(int id);
++
++	/**
++	 * Changes the ID of the widget
++	 */
++	void setId(int id);
++
++	/**
++	 * Sets the index of this element
++	 */
++	void setIndex(int index);
++
++	/**
++	 * Seems like this needs to set to true when creating new widgets
++	 */
++	void setIsIf3(boolean isIf3);
++}
+\ No newline at end of file
+Index: runelite-api/src/main/java/net/runelite/api/widgets/WidgetID.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/widgets/WidgetID.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/widgets/WidgetID.java	(revision Shelved Version)
+@@ -41,6 +41,7 @@
+ 	public static final int LOGOUT_PANEL_ID = 182;
+ 	public static final int BANK_GROUP_ID = 12;
+ 	public static final int BANK_INVENTORY_GROUP_ID = 15;
++	public static final int BANK_PIN_GROUP_ID = 213;
+ 	public static final int GRAND_EXCHANGE_INVENTORY_GROUP_ID = 467;
+ 	public static final int GRAND_EXCHANGE_GROUP_ID = 465;
+ 	public static final int DEPOSIT_BOX_GROUP_ID = 192;
+@@ -55,6 +56,8 @@
+ 	public static final int DIARY_GROUP_ID = 259;
+ 	public static final int PEST_CONTROL_BOAT_GROUP_ID = 407;
+ 	public static final int PEST_CONTROL_GROUP_ID = 408;
++	public static final int PEST_CONTROL_EXCHANGE_WINDOW_GROUP_ID = 243;
++	public static final int PEST_CONTROL_DIALOG_GROUP_ID = 229;
+ 	public static final int CLAN_CHAT_GROUP_ID = 7;
+ 	public static final int MINIMAP_GROUP_ID = 160;
+ 	public static final int LOGIN_CLICK_TO_PLAY_GROUP_ID = 378;
+@@ -128,8 +131,11 @@
+ 	public static final int FULLSCREEN_MAP_GROUP_ID = 165;
+ 	public static final int QUESTLIST_GROUP_ID = 399;
+ 	public static final int SKILLS_GROUP_ID = 320;
++	public static final int DIALOG_SPRITE2_ID = 11;
++	public static final int EQUIPMENT_PAGE_GROUP_ID = 84;
+ 	public static final int QUESTTAB_GROUP_ID = 629;
+ 	public static final int MUSIC_GROUP_ID = 239;
++	public static final int MUSICTAB_GROUP_ID = 239;
+ 	public static final int BARROWS_PUZZLE_GROUP_ID = 25;
+ 	public static final int KEPT_ON_DEATH_GROUP_ID = 4;
+ 	public static final int GUIDE_PRICE_GROUP_ID = 464;
+@@ -173,12 +179,32 @@
+ 	static class PestControlBoat
+ 	{
+ 		static final int INFO = 3;
++
++		static final int NEXT_DEPARTURE = 4;
++		static final int PLAYERS_READY = 5;
++		static final int POINTS = 6;
++	}
++
++	static class PestControlExchangeWindow
++	{
++		static final int ITEM_LIST = 2;
++		static final int BOTTOM = 5;
++		static final int POINTS = 8;
++		static final int CONFIRM_BUTTON = 6;
++	}
++
++	static class PestControlDialog
++	{
++		static final int TEXT = 1;
++		static final int CONTINUE = 2;
+ 	}
+ 
+ 	static class PestControl
+ 	{
+ 		static final int INFO = 3;
+ 
++		static final int TIME = 6;
++
+ 		static final int ACTIVITY_BAR = 12;
+ 		static final int ACTIVITY_PROGRESS = 14;
+ 
+@@ -333,6 +359,8 @@
+ 	{
+ 		static final int MINIMAP = 3;
+ 		static final int MINIMAP_DRAW_AREA = 8;
++		static final int MULTICOMBAT_INDICATOR = 20;
++		static final int BANK_PIN = 21;
+ 		static final int CLAN_CHAT_TAB = 31;
+ 		static final int FRIENDS_TAB = 33;
+ 		static final int IGNORES_TAB = 32;
+@@ -369,6 +397,9 @@
+ 
+ 	static class ResizableViewport
+ 	{
++		static final int ITEMS_KEPT_ON_DEATH = 13;
++		static final int BANK_PIN = 13;
++		static final int MULTICOMBAT_INDICATOR = 16;
+ 		static final int CLAN_CHAT_TAB = 35;
+ 		static final int FRIENDS_TAB = 37;
+ 		static final int IGNORES_TAB = 36;
+@@ -403,6 +434,7 @@
+ 
+ 	static class ResizableViewportBottomLine
+ 	{
++		static final int BANK_PIN = 13;
+ 		static final int LOGOUT_BUTTON_OVERLAY = 29;
+ 		static final int CMB_TAB = 50;
+ 		static final int CMB_ICON = 57;
+@@ -416,7 +448,7 @@
+ 		static final int EQUIP_ICON = 61;
+ 		static final int PRAYER_TAB = 55;
+ 		static final int PRAYER_ICON = 62;
+-		static final int SPELL_TAB = 56;
++		static final int MAGIC_TAB = 56;
+ 		static final int SPELL_ICON = 53;
+ 		static final int FC_TAB = 35;
+ 		static final int FC_ICON = 41;
+@@ -534,6 +566,8 @@
+ 		static final int SPELL_ICON = 28;
+ 		static final int SPELL_TEXT = 29;
+ 		static final int AUTO_RETALIATE = 30;
++		static final int SPECIAL_ATTACK_BAR = 34;
++		static final int TOOLTIP = 41;
+ 	}
+ 
+ 	static class VolcanicMine
+@@ -556,17 +590,43 @@
+ 	{
+ 		static class ATK
+ 		{
+-			static final int CALL_TEXT = 8;
++			static final int LISTEN = 8;
+ 			static final int TO_CALL_WIDGET = 9;
+ 			static final int TO_CALL = 10;
+ 			static final int ROLE_SPRITE = 11;
+ 			static final int ROLE = 12;
+ 		}
+-		static final int CORRECT_STYLE = 3;
++		static class HLR
++		{
++			static final int TEAMMATE1 = 18;
++			static final int TEAMMATE2 = 22;
++			static final int TEAMMATE3 = 26;
++			static final int TEAMMATE4 = 30;
++		}
++		static class REWARD_VALUES
++		{
++			static final int RUNNERS_PASSED = 14;
++			static final int HITPOINTS_REPLENISHED = 19;
++			static final int WRONG_POISON_PACKS_USED = 20;
++			static final int EGGS_COLLECTED = 21;
++			static final int FAILED_ATTACKER_ATTACKS = 22;
++			static final int RUNNERS_PASSED_POINTS = 24;
++			static final int RANGERS_KILLED = 25;
++			static final int FIGHTERS_KILLED = 26;
++			static final int HEALERS_KILLED = 27;
++			static final int RUNNERS_KILLED = 28;
++			static final int HITPOINTS_REPLENISHED_POINTS = 29;
++			static final int WRONG_POISON_PACKS_USED_POINTS = 30;
++			static final int EGGS_COLLECTED_POINTS = 31;
++			static final int FAILED_ATTACKER_ATTACKS_POINTS = 32;
++			static final int BASE_POINTS = 33;
++			static final int HONOUR_POINTS_REWARD = 49;
++		}
++		static final int GAME_WIDGET = 3;
+ 		static final int CURRENT_WAVE_WIDGET = 4;
+ 		static final int CURRENT_WAVE = 5;
+-		static final int CALL_WIDGET = 6;
+-		static final int CALL_TEXT = 7;
++		static final int LISTEN_WIDGET = 6;
++		static final int LISTEN = 7;
+ 		static final int TO_CALL_WIDGET = 8;
+ 		static final int TO_CALL = 9;
+ 		static final int ROLE_SPRITE = 10;
+@@ -678,6 +738,28 @@
+ 		static final int DESTROY_ITEM_NO = 3;
+ 	}
+ 
++	static class EquipmentWidgetIdentifiers
++	{
++		static final int EQUIP_YOUR_CHARACTER = 3;
++		static final int STAB_ATTACK_BONUS = 23;
++		static final int SLASH_ATTACK_BONUS = 24;
++		static final int CRUSH_ATTACK_BONUS = 25;
++		static final int MAGIC_ATTACK_BONUS = 26;
++		static final int RANGED_ATTACK_BONUS = 27;
++		static final int STAB_DEFENCE_BONUS = 29;
++		static final int SLASH_DEFENCE_BONUS = 30;
++		static final int CRUSH_DEFENCE_BONUS = 31;
++		static final int MAGIC_DEFENCE_BONUS = 32;
++		static final int RANGED_DEFENCE_BONUS = 33;
++		static final int MELEE_STRENGTH = 35;
++		static final int RANGED_STRENGTH = 36;
++		static final int MAGIC_DAMAGE = 37;
++		static final int PRAYER_BONUS = 38;
++		static final int UNDEAD_DAMAGE_BONUS = 40;
++		static final int SLAYER_DAMAGE_BONUS = 41;
++		static final int WEIGHT = 43;
++	}
++
+ 	static class VarrockMuseum
+ 	{
+ 		static final int VARROCK_MUSEUM_QUESTION = 28;
+@@ -709,28 +791,166 @@
+ 		static final int TELEPORT_BUTTON = 26;
+ 	}
+ 
+-	static class StandardSpellBook
++	static class SpellBook
+ 	{
++		static final int FILTERED_SPELLS_BOUNDS = 3;
++
++		// NORMAL SPELLS
+ 		static final int LUMBRIDGE_HOME_TELEPORT = 4;
+-	}
++		static final int WIND_STRIKE = 5;
++		static final int CONFUSE = 6;
++		static final int ENCHANT_CROSSBOW_BOLT = 7;
++		static final int WATER_STRIKE = 8;
++		static final int LVL_1_ENCHANT = 9;
++		static final int EARTH_STRIKE = 10;
++		static final int WEAKEN = 11;
++		static final int FIRE_STRIKE = 12;
++		static final int BONES_TO_BANANAS = 13;
++		static final int WIND_BOLT = 14;
++		static final int CURSE = 15;
++		static final int BIND = 16;
++		static final int LOW_LEVEL_ALCHEMY = 17;
++		static final int WATER_BOLT = 18;
++		static final int VARROCK_TELEPORT = 19;
++		static final int LVL_2_ENCHANT = 20;
++		static final int EARTH_BOLT = 21;
++		static final int LUMBRIDGE_TELEPORT = 22;
++		static final int TELEKINETIC_GRAB = 23;
++		static final int FIRE_BOLT = 24;
++		static final int FALADOR_TELEPORT = 25;
++		static final int CRUMBLE_UNDEAD = 26;
++		static final int TELEPORT_TO_HOUSE = 27;
++		static final int WIND_BLAST = 28;
++		static final int SUPERHEAT_ITEM = 29;
++		static final int CAMELOT_TELEPORT = 30;
++		static final int WATER_BLAST = 31;
++		static final int LVL_3_ENCHANT = 32;
++		static final int IBAN_BLAST = 33;
++		static final int SNARE = 34;
++		static final int MAGIC_DART = 35;
++		static final int ARDOUGNE_TELEPORT = 36;
++		static final int EARTH_BLAST = 37;
++		static final int HIGH_LEVEL_ALCHEMY = 38;
++		static final int CHARGE_WATER_ORB = 39;
++		static final int LVL_4_ENCHANT = 40;
++		static final int WATCHTOWER_TELEPORT = 41;
++		static final int FIRE_BLAST = 42;
++		static final int CHARGE_EARTH_ORB = 43;
++		static final int BONES_TO_PEACHES = 44;
++		static final int SARADOMIN_STRIKE = 45;
++		static final int CLAWS_OF_GUTHIX = 46;
++		static final int FLAMES_OF_ZAMORAK = 47;
++		static final int TROLLHEIM_TELEPORT = 48;
++		static final int WIND_WAVE = 49;
++		static final int CHARGE_FIRE_ORB = 50;
++		static final int TELEPORT_TO_APE_ATOLL = 51;
++		static final int WATER_WAVE = 52;
++		static final int CHARGE_AIR_ORB = 53;
++		static final int VULNERABILITY = 54;
++		static final int LVL_5_ENCHANT = 55;
++		static final int TELEPORT_TO_KOUREND = 56;
++		static final int EARTH_WAVE = 57;
++		static final int ENFEEBLE = 58;
++		static final int TELEOTHER_LUMBRIDGE = 59;
++		static final int FIRE_WAVE = 60;
++		static final int ENTANGLE = 61;
++		static final int STUN = 62;
++		static final int CHARGE = 63;
++		static final int WIND_SURGE = 64;
++		static final int TELEOTHER_FALADOR = 65;
++		static final int WATER_SURGE = 66;
++		static final int TELE_BLOCK = 67;
++		static final int BOUNTY_TARGET_TELEPORT = 68;
++		static final int LVL_6_ENCHANT = 69;
++		static final int TELEOTHER_CAMELOT = 70;
++		static final int EARTH_SURGE = 71;
++		static final int LVL_7_ENCHANT = 72;
++		static final int FIRE_SURGE = 73;
+ 
+-	static class AncientSpellBook
+-	{
++		// ANCIENT SPELLS
++		static final int ICE_RUSH = 74;
++		static final int ICE_BLITZ = 75;
++		static final int ICE_BURST = 76;
++		static final int ICE_BARRAGE = 77;
++		static final int BLOOD_RUSH = 78;
++		static final int BLOOD_BLITZ = 79;
++		static final int BLOOD_BURST = 80;
++		static final int BLOOD_BARRAGE = 81;
++		static final int SMOKE_RUSH = 82;
++		static final int SMOKE_BLITZ = 83;
++		static final int SMOKE_BURST = 84;
++		static final int SMOKE_BARRAGE = 85;
++		static final int SHADOW_RUSH = 86;
++		static final int SHADOW_BLITZ = 87;
++		static final int SHADOW_BURST = 88;
++		static final int SHADOW_BARRAGE = 89;
++		static final int PADDEWWA_TELEPORT = 90;
++		static final int SENNTISTEN_TELEPORT = 91;
++		static final int KHARYRLL_TELEPORT = 92;
++		static final int LASSAR_TELEPORT = 93;
++		static final int DAREEYAK_TELEPORT = 94;
++		static final int CARRALLANGER_TELEPORT = 95;
++		static final int ANNAKARL_TELEPORT = 96;
++		static final int GHORROCK_TELEPORT = 97;
+ 		static final int EDGEVILLE_HOME_TELEPORT = 98;
+-	}
++		static final int TOOLTIP = 188;
+ 
+-	static class LunarSpellBook
+-	{
++
++		// LUNAR SPELLS
+ 		static final int LUNAR_HOME_TELEPORT = 99;
+-	}
++		static final int BAKE_PIE = 100;
++		static final int CURE_PLANT = 101;
++		static final int MONSTER_EXAMINE = 102;
++		static final int NPC_CONTACT = 103;
++		static final int CURE_OTHER = 104;
++		static final int HUMIDIFY = 105;
++		static final int MOONCLAN_TELEPORT = 106;
++		static final int TELE_GROUP_MOONCLAN = 107;
++		static final int CURE_ME = 108;
++		static final int HUNTER_KIT = 109;
++		static final int WATERBIRTH_TELEPORT = 110;
++		static final int TELE_GROUP_WATERBIRTH = 111;
++		static final int CURE_GROUP = 112;
++		static final int STAT_SPY = 113;
++		static final int BARBARIAN_TELEPORT = 114;
++		static final int TELE_GROUP_BARBARIAN = 115;
++		static final int SUPERGLASS_MAKE = 116;
++		static final int TAN_LEATHER = 117;
++		static final int KHAZARD_TELEPORT = 118;
++		static final int TELE_GROUP_KHAZARD = 119;
++		static final int DREAM = 120;
++		static final int STRING_JEWELLERY = 121;
++		static final int STAT_RESTORE_POT_SHARE = 122;
++		static final int MAGIC_IMBUE = 123;
++		static final int FERTILE_SOIL = 124;
++		static final int BOOST_POTION_SHARE = 125;
++		static final int FISHING_GUILD_TELEPORT = 126;
++		static final int TELE_GROUP_FISHING_GUILD = 127;
++		static final int PLANK_MAKE = 128;
++		static final int CATHERBY_TELEPORT = 129;
++		static final int TELE_GROUP_CATHERBY = 130;
++		static final int RECHARGE_DRAGONSTONE = 131;
++		static final int ICE_PLATEAU_TELEPORT = 132;
++		static final int TELE_GROUP_ICE_PLATEAU = 133;
++		static final int ENERGY_TRANSFER = 134;
++		static final int HEAL_OTHER = 135;
++		static final int VENGEANCE_OTHER = 136;
++		static final int VENGEANCE = 137;
++		static final int HEAL_GROUP = 138;
++		static final int SPELLBOOK_SWAP = 139;
++		static final int GEOMANCY = 140;
++		static final int SPIN_FLAX = 141;
++		static final int OURANIA_TELEPORT = 142;
+ 
+-	static class ArceuusSpellBook
+-	{
++		// ARCEUUS SPELLS
+ 		static final int ARCEUUS_HOME_TELEPORT = 143;
+ 	}
+ 
+ 	static class Pvp
+ 	{
++		static final int PVP_WIDGET_CONTAINER = 54;  // OUTDATED?
++		static final int SKULL = 56;  // OUTDATED?
++		static final int ATTACK_RANGE = 59;  // OUTDATED?
+ 		static final int BOUNTY_HUNTER_INFO = 19;
+ 		static final int KILLDEATH_RATIO = 15;
+ 		static final int SKULL_CONTAINER = 62;
+@@ -773,6 +993,14 @@
+ 		static final int MINIQUEST_CONTAINER = 8;
+ 	}
+ 
++	static class DialogSprite2
++	{
++		static final int SPRITE1 = 1;
++		static final int TEXT = 2;
++		static final int SPRITE2 = 3;
++		static final int CONTINUE = 4;
++	}
++
+ 	static class QuestTab
+ 	{
+ 		static final int QUEST_TAB = 3;
+@@ -806,4 +1034,68 @@
+ 		static final int ANSWER3_CONTAINER = 16;
+ 		static final int ANSWER3 = 17;
+ 	}
+-}
++
++	static class KeptOnDeath
++	{
++		static final int KEPT_ITEMS_CONTAINER = 18;
++		static final int LOST_ITEMS_CONTAINER = 21;
++		static final int LOST_ITEMS_VALUE = 23;
++		static final int INFORMATION_CONTAINER = 29;
++		static final int MAX_ITEMS_KEPT_ON_DEATH = 30;
++		static final int SAFE_ZONE_CONTAINER = 31;
++
++		static final int CUSTOM_TEXT_CONTAINER = 33;
++	}
++
++	public static class TradeScreen
++	{
++		public static final int SECOND_GROUP_ID = 334;
++		public static final int SECOND_TRADING_WITH = 30;
++		public static final int SECOND_MY_OFFER = 23;
++		public static final int SECOND_THEIR_OFFER = 24;
++		public static final int SECOND_ACCEPT_FUNC = 13;
++		public static final int SECOND_ACCEPT_TEXT = 25;
++	}
++
++	public static class DuelConfig
++	{
++		public static final int CONFIG_GROUP_IP = 482;
++		public static final int TITLE = 35;
++		public static final int OPPONENT_ATT = 9;
++		public static final int OPPONENT_STR = 13;
++		public static final int OPPONENT_DEF = 17;
++		public static final int OPPONENT_HP = 21;
++	}
++
++	public static class DuelResult
++	{
++		public static final int RESULT_GROUP_ID = 372;
++		public static final int TITLE = 16;
++		public static final int TOTAL_STAKED = 32;
++		public static final int TOTAL_TAX = 39;
++		public static final int WINNINGS = 40;
++	}
++
++	// Also used for many other interfaces!
++	static class BankPin
++	{
++		static final int TOP_LEFT_TEXT = 2;
++		static final int FIRST_ENTERED = 3;
++		static final int SECOND_ENTERED = 4;
++		static final int THIRD_ENTERED = 5;
++		static final int FOURTH_ENTERED = 6;
++		static final int INSTRUCTION_TEXT = 10;
++		static final int EXIT_BUTTON = 13;
++		static final int FORGOT_BUTTON = 15;
++		static final int BUTTON_1 = 16;
++		static final int BUTTON_2 = 18;
++		static final int BUTTON_3 = 20;
++		static final int BUTTON_4 = 22;
++		static final int BUTTON_5 = 24;
++		static final int BUTTON_6 = 26;
++		static final int BUTTON_7 = 28;
++		static final int BUTTON_8 = 30;
++		static final int BUTTON_9 = 32;
++		static final int BUTTON_0 = 34;
++	}
++}
+\ No newline at end of file
+Index: runelite-client/src/main/java/net/runelite/client/menus/MenuManager.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-client/src/main/java/net/runelite/client/menus/MenuManager.java	(revision Local Version)
++++ runelite-client/src/main/java/net/runelite/client/menus/MenuManager.java	(revision Shelved Version)
+@@ -26,13 +26,17 @@
+ 
+ import com.google.common.base.Preconditions;
+ import com.google.common.collect.HashMultimap;
++import com.google.common.collect.Lists;
+ import com.google.common.collect.Multimap;
++import java.util.ArrayList;
+ import java.util.Arrays;
+ import java.util.Collection;
+ import java.util.HashMap;
+ import java.util.HashSet;
++import java.util.List;
+ import java.util.Map;
+ import java.util.Set;
++import java.util.regex.Pattern;
+ import javax.inject.Inject;
+ import javax.inject.Singleton;
+ import lombok.extern.slf4j.Slf4j;
+@@ -60,6 +64,20 @@
+ 	 */
+ 	private static final int IDX_LOWER = 4;
+ 	private static final int IDX_UPPER = 8;
++	static final Pattern LEVEL_PATTERN = Pattern.compile("\\(level-[0-9]*\\)");
++
++	private static MenuEntry CANCEL()
++	{
++		MenuEntry cancel = new MenuEntry();
++		cancel.setOption("Cancel");
++		cancel.setTarget("");
++		cancel.setIdentifier(0);
++		cancel.setType(MenuAction.CANCEL.getId());
++		cancel.setParam0(0);
++		cancel.setParam1(0);
++
++		return cancel;
++	}
+ 
+ 	private final Client client;
+ 	private final EventBus eventBus;
+@@ -70,6 +88,11 @@
+ 	private final Multimap<Integer, WidgetMenuOption> managedMenuOptions = HashMultimap.create();
+ 	private final Set<String> npcMenuOptions = new HashSet<>();
+ 
++	private final Set<AbstractMenuEntry> priorityEntries = new HashSet<>();
++	private final Set<MenuEntry> currentPriorityEntries = new HashSet<>();
++
++	private final Map<AbstractMenuEntry, AbstractMenuEntry> swaps = new HashMap<>();
++
+ 	@Inject
+ 	private MenuManager(Client client, EventBus eventBus)
+ 	{
+@@ -119,12 +142,18 @@
+ 	{
+ 		int widgetId = event.getActionParam1();
+ 		Collection<WidgetMenuOption> options = managedMenuOptions.get(widgetId);
++		MenuEntry[] menuEntries = client.getMenuEntries();
++
++		if (menuEntries.length == 1)
++		{
++			// Menu entries reset, so priority entries should reset as well
++			currentPriorityEntries.clear();
++		}
+ 
+ 		for (WidgetMenuOption currentMenu : options)
+ 		{
+ 			if (!menuContainsCustomMenu(currentMenu))//Don't add if we have already added it to this widget
+ 			{
+-				MenuEntry[] menuEntries = client.getMenuEntries();
+ 				menuEntries = Arrays.copyOf(menuEntries, menuEntries.length + 1);
+ 
+ 				MenuEntry menuEntry = menuEntries[menuEntries.length - 1] = new MenuEntry();
+@@ -136,6 +165,83 @@
+ 				client.setMenuEntries(menuEntries);
+ 			}
+ 		}
++
++		MenuEntry newestEntry = menuEntries[menuEntries.length - 1];
++
++		boolean isPrio = false;
++		for (AbstractMenuEntry p : priorityEntries)
++		{
++			if (p.matches(newestEntry))
++			{
++				isPrio = true;
++				break;
++			}
++		}
++
++		// If the last entry was a priority entry, keep track of it
++		if (isPrio)
++		{
++			currentPriorityEntries.add(newestEntry);
++		}
++
++		// Make a copy of the menu entries, cause you can't remove from Arrays.asList()
++		List<MenuEntry> copy = new ArrayList<>(Arrays.asList(menuEntries));
++
++		// If there are entries we want to prioritize, we have to remove the rest
++		if (!currentPriorityEntries.isEmpty())
++		{
++			copy.retainAll(currentPriorityEntries);
++
++			copy.add(CANCEL());
++		}
++
++		// Find the current entry in the swaps map
++		AbstractMenuEntry swapEntry = null;
++		for (AbstractMenuEntry e : swaps.keySet())
++		{
++			if (e.matches(newestEntry))
++			{
++				swapEntry = e;
++				break;
++			}
++		}
++
++		if (swapEntry != null)
++		{
++			AbstractMenuEntry swapTarget = swaps.get(swapEntry);
++
++			// Find the target for the swap in current menu entries
++			MenuEntry foundSwap = null;
++			for (MenuEntry entry : Lists.reverse(copy))
++			{
++				if (swapTarget.matches(entry))
++				{
++					foundSwap = entry;
++					break;
++				}
++			}
++
++			if (foundSwap != null)
++			{
++				if (swapTarget.getType() != -1 && newestEntry.getType() != foundSwap.getType())
++				{
++					int newType = foundSwap.getType();
++
++					foundSwap.setType(newestEntry.getType());
++
++					newestEntry.setType(newType);
++				}
++
++				// Swap
++				int index = copy.indexOf(foundSwap);
++				int newIndex = copy.indexOf(newestEntry);
++
++				copy.set(index, newestEntry);
++				copy.set(newIndex, foundSwap);
++			}
++		}
++
++		client.setMenuEntries(copy.toArray(new MenuEntry[0]));
+ 	}
+ 
+ 	public void addPlayerMenuItem(String menuText)
+@@ -253,7 +359,7 @@
+ 		for (WidgetMenuOption curMenuOption : options)
+ 		{
+ 			if (curMenuOption.getMenuTarget().equals(event.getMenuTarget())
+-				&& curMenuOption.getMenuOption().equals(event.getMenuOption()))
++					&& curMenuOption.getMenuOption().equals(event.getMenuOption()))
+ 			{
+ 				WidgetMenuOptionClicked customMenu = new WidgetMenuOptionClicked();
+ 				customMenu.setMenuOption(event.getMenuOption());
+@@ -307,4 +413,192 @@
+ 
+ 		return index;
+ 	}
+-}
++
++	/**
++	 * Adds to the set of menu entries which when present, will remove all entries except for this one
++	 */
++	public void addPriorityEntry(String option, String target)
++	{
++		option = Text.standardize(option);
++		target = Text.standardize(target);
++
++		AbstractMenuEntry entry = new AbstractMenuEntry(option, target);
++
++		priorityEntries.add(entry);
++	}
++
++	public void removePriorityEntry(String option, String target)
++	{
++		option = Text.standardize(option);
++		target = Text.standardize(target);
++
++		AbstractMenuEntry entry = new AbstractMenuEntry(option, target);
++
++		Set<AbstractMenuEntry> toRemove = new HashSet<>();
++		for (AbstractMenuEntry priorityEntry : priorityEntries)
++		{
++			if (entry.equals(priorityEntry))
++			{
++				toRemove.add(entry);
++			}
++		}
++
++		for (AbstractMenuEntry e : toRemove)
++		{
++			priorityEntries.remove(e);
++		}
++	}
++
++
++	/**
++	 * Adds to the set of menu entries which when present, will remove all entries except for this one
++	 * This method will add one with strict option, but not-strict target (contains for target, equals for option)
++	 */
++	public void addPriorityEntry(String option)
++	{
++		option = Text.standardize(option);
++
++		AbstractMenuEntry entry = new AbstractMenuEntry(option, "", false);
++
++		priorityEntries.add(entry);
++	}
++
++	public void removePriorityEntry(String option)
++	{
++		option = Text.standardize(option);
++
++		AbstractMenuEntry entry = new AbstractMenuEntry(option, "", false);
++
++		Set<AbstractMenuEntry> toRemove = new HashSet<>();
++		for (AbstractMenuEntry priorityEntry : priorityEntries)
++		{
++			if (entry.equals(priorityEntry))
++			{
++				toRemove.add(entry);
++			}
++		}
++
++		for (AbstractMenuEntry e : toRemove)
++		{
++			priorityEntries.remove(e);
++		}
++	}
++
++	/**
++	 * Adds to the map of swaps. - Strict option + target
++	 */
++	public void addSwap(String option, String target, String option2, String target2)
++	{
++		option = Text.standardize(option);
++		target = Text.standardize(target);
++
++		option2 = Text.standardize(option2);
++		target2 = Text.standardize(target2);
++
++		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target);
++		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2);
++
++		if (swapTo.equals(swapFrom))
++		{
++			log.warn("You shouldn't try swapping an entry for itself");
++			return;
++		}
++
++		swaps.put(swapFrom, swapTo);
++	}
++
++	/**
++	 * Adds to the map of swaps - Pre-baked Abstract entry
++	 */
++	public void addSwap(AbstractMenuEntry swapFrom, AbstractMenuEntry swapTo)
++	{
++		if (swapTo.equals(swapFrom))
++		{
++			log.warn("You shouldn't try swapping an entry for itself");
++			return;
++		}
++
++		swaps.put(swapFrom, swapTo);
++	}
++
++	/**
++	 * Adds to the map of swaps - Non-strict option/target, but with type & id
++	 * ID's of -1 are ignored in matches()!
++	 */
++	public void addSwap(String option, String target, int id, int type, String option2, String target2, int id2, int type2)
++	{
++		option = Text.standardize(option);
++		target = Text.standardize(target);
++
++		option2 = Text.standardize(option2);
++		target2 = Text.standardize(target2);
++
++		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target, id, type, false, false);
++		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2, id2, type2, false, false);
++
++		if (swapTo.equals(swapFrom))
++		{
++			log.warn("You shouldn't try swapping an entry for itself");
++			return;
++		}
++
++		swaps.put(swapFrom, swapTo);
++	}
++
++	public void removeSwap(String option, String target, int id, int type, String option2, String target2, int id2, int type2)
++	{
++		option = Text.standardize(option);
++		target = Text.standardize(target);
++
++		option2 = Text.standardize(option2);
++		target2 = Text.standardize(target2);
++
++		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target, id, type, false, false);
++		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2, id2, type2, false, false);
++
++		Set<AbstractMenuEntry> toRemove = new HashSet<>();
++		for (Map.Entry<AbstractMenuEntry, AbstractMenuEntry> e : swaps.entrySet())
++		{
++			if (e.getKey().equals(swapFrom) && e.getValue().equals(swapTo))
++			{
++				toRemove.add(e.getKey());
++			}
++		}
++
++		for (AbstractMenuEntry entry : toRemove)
++		{
++			swaps.remove(entry);
++		}
++	}
++
++	public void removeSwap(String option, String target, String option2, String target2)
++	{
++		option = Text.standardize(option);
++		target = Text.standardize(target);
++
++		option2 = Text.standardize(option2);
++		target2 = Text.standardize(target2);
++
++		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target);
++		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2);
++
++		removeSwap(swapFrom, swapTo);
++	}
++
++	public void removeSwap(AbstractMenuEntry swapFrom, AbstractMenuEntry swapTo)
++	{
++		Set<AbstractMenuEntry> toRemove = new HashSet<>();
++		for (Map.Entry<AbstractMenuEntry, AbstractMenuEntry> e : swaps.entrySet())
++		{
++			if (e.getKey().equals(swapFrom) && e.getValue().equals(swapTo))
++			{
++				toRemove.add(e.getKey());
++			}
++		}
++
++		for (AbstractMenuEntry entry : toRemove)
++		{
++			swaps.remove(entry);
++		}
++	}
++}
+\ No newline at end of file
+Index: runelite-api/src/main/java/net/runelite/api/widgets/WidgetInfo.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/widgets/WidgetInfo.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/widgets/WidgetInfo.java	(revision Shelved Version)
+@@ -54,6 +54,7 @@
+ 	WORLD_MAP_SURFACE_SELECTOR(WidgetID.WORLD_MAP_GROUP_ID, WidgetID.WorldMap.SURFACE_SELECTOR),
+ 	WORLD_MAP_TOOLTIP(WidgetID.WORLD_MAP_GROUP_ID, WidgetID.WorldMap.TOOLTIP),
+ 	WORLD_MAP_OPTION(WidgetID.WORLD_MAP_MENU_GROUP_ID, WidgetID.WorldMap.OPTION),
++	WORLD_MAP_BUTTON_BORDER(WidgetID.MINIMAP_GROUP_ID, WidgetID.Minimap.WORLDMAP_ORB),
+ 
+ 	CLUE_SCROLL_TEXT(WidgetID.CLUE_SCROLL_GROUP_ID, WidgetID.Cluescroll.CLUE_TEXT),
+ 	CLUE_SCROLL_REWARD_ITEM_CONTAINER(WidgetID.CLUE_SCROLL_REWARD_GROUP_ID, WidgetID.Cluescroll.CLUE_SCROLL_ITEM_CONTAINER),
+@@ -84,8 +85,14 @@
+ 	DIARY_QUEST_WIDGET_TITLE(WidgetID.DIARY_QUEST_GROUP_ID, WidgetID.Diary.DIARY_TITLE),
+ 	DIARY_QUEST_WIDGET_TEXT(WidgetID.DIARY_QUEST_GROUP_ID, WidgetID.Diary.DIARY_TEXT),
+ 
++	PEST_CONTROL_DIALOG(WidgetID.PEST_CONTROL_DIALOG_GROUP_ID, 0),
++	PEST_CONTROL_DIALOG_TEXT(WidgetID.PEST_CONTROL_DIALOG_GROUP_ID, WidgetID.PestControlDialog.TEXT),
++	PEST_CONTROL_EXCHANGE_WINDOW(WidgetID.PEST_CONTROL_EXCHANGE_WINDOW_GROUP_ID, 0),
++	PEST_CONTROL_EXCHANGE_WINDOW_POINTS(WidgetID.PEST_CONTROL_EXCHANGE_WINDOW_GROUP_ID, WidgetID.PestControlExchangeWindow.POINTS),
+ 	PEST_CONTROL_BOAT_INFO(WidgetID.PEST_CONTROL_BOAT_GROUP_ID, WidgetID.PestControlBoat.INFO),
++	PEST_CONTROL_BOAT_INFO_POINTS(WidgetID.PEST_CONTROL_BOAT_GROUP_ID, WidgetID.PestControlBoat.POINTS),
+ 	PEST_CONTROL_INFO(WidgetID.PEST_CONTROL_GROUP_ID, WidgetID.PestControl.INFO),
++	PEST_CONTROL_INFO_TIME(WidgetID.PEST_CONTROL_GROUP_ID, WidgetID.PestControl.TIME),
+ 	PEST_CONTROL_PURPLE_SHIELD(WidgetID.PEST_CONTROL_GROUP_ID, WidgetID.PestControl.PURPLE_SHIELD),
+ 	PEST_CONTROL_BLUE_SHIELD(WidgetID.PEST_CONTROL_GROUP_ID, WidgetID.PestControl.BLUE_SHIELD),
+ 	PEST_CONTROL_YELLOW_SHIELD(WidgetID.PEST_CONTROL_GROUP_ID, WidgetID.PestControl.YELLOW_SHIELD),
+@@ -163,6 +170,7 @@
+ 	MINIMAP_HEALTH_ORB(WidgetID.MINIMAP_GROUP_ID, WidgetID.Minimap.HEALTH_ORB),
+ 	MINIMAP_SPEC_ORB(WidgetID.MINIMAP_GROUP_ID, WidgetID.Minimap.SPEC_ORB),
+ 	MINIMAP_WORLDMAP_ORB(WidgetID.MINIMAP_GROUP_ID, WidgetID.Minimap.WORLDMAP_ORB),
++	MINIMAP_WORLD_ORB(WidgetID.MINIMAP_GROUP_ID, WidgetID.Minimap.WORLDMAP_ORB),
+ 
+ 	LOGIN_CLICK_TO_PLAY_SCREEN(WidgetID.LOGIN_CLICK_TO_PLAY_GROUP_ID, 0),
+ 	LOGIN_CLICK_TO_PLAY_SCREEN_MESSAGE_OF_THE_DAY(WidgetID.LOGIN_CLICK_TO_PLAY_GROUP_ID, WidgetID.LoginClickToPlayScreen.MESSAGE_OF_THE_DAY),
+@@ -245,6 +253,7 @@
+ 	RESIZABLE_VIEWPORT_OPTIONS_ICON(WidgetID.RESIZABLE_VIEWPORT_OLD_SCHOOL_BOX_GROUP_ID, WidgetID.ResizableViewport.OPTIONS_ICON),
+ 	RESIZABLE_VIEWPORT_EMOTES_ICON(WidgetID.RESIZABLE_VIEWPORT_OLD_SCHOOL_BOX_GROUP_ID, WidgetID.ResizableViewport.EMOTES_ICON),
+ 	RESIZABLE_VIEWPORT_MUSIC_ICON(WidgetID.RESIZABLE_VIEWPORT_OLD_SCHOOL_BOX_GROUP_ID, WidgetID.ResizableViewport.MUSIC_ICON),
++	RESIZABLE_VIEWPORT_KEPT_ON_DEATH(WidgetID.RESIZABLE_VIEWPORT_OLD_SCHOOL_BOX_GROUP_ID, WidgetID.ResizableViewport.ITEMS_KEPT_ON_DEATH),
+ 
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.Viewport.RESIZABLE_VIEWPORT_BOTTOM_LINE),
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE_LOGOUT_BUTTON(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.LOGOUT_BUTTON_OVERLAY),
+@@ -256,6 +265,7 @@
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE_EQUIPMENT_ICON(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.EQUIP_ICON),
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE_COMBAT_ICON(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.CMB_ICON),
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE_STATS_ICON(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.SKILLS_ICON),
++	RESIZABLE_VIEWPORT_BOTTOM_LINE_MAGIC_TAB(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.MAGIC_TAB),
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE_MAGIC_ICON(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.MAGIC_ICON),
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_ICON(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.FRIEND_ICON),
+ 	RESIZABLE_VIEWPORT_BOTTOM_LINE_FRIEND_CHAT_ICON(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.FC_ICON),
+@@ -313,12 +323,19 @@
+ 	COMBAT_SPELL_ICON(WidgetID.COMBAT_GROUP_ID, WidgetID.Combat.SPELL_ICON),
+ 	COMBAT_SPELL_TEXT(WidgetID.COMBAT_GROUP_ID, WidgetID.Combat.SPELL_TEXT),
+ 	COMBAT_AUTO_RETALIATE(WidgetID.COMBAT_GROUP_ID, WidgetID.Combat.AUTO_RETALIATE),
++	COMBAT_SPECIAL_ATTACK(WidgetID.COMBAT_GROUP_ID, WidgetID.Combat.SPECIAL_ATTACK_BAR),
++	COMBAT_TOOLTIP(WidgetID.COMBAT_GROUP_ID, WidgetID.Combat.TOOLTIP),
+ 
+ 	DIALOG_OPTION(WidgetID.DIALOG_OPTION_GROUP_ID, 0),
+ 
+ 	DIALOG_SPRITE(WidgetID.DIALOG_SPRITE_GROUP_ID, 0),
+ 	DIALOG_SPRITE_SPRITE(WidgetID.DIALOG_SPRITE_GROUP_ID, WidgetID.DialogSprite.SPRITE),
+ 	DIALOG_SPRITE_TEXT(WidgetID.DIALOG_SPRITE_GROUP_ID, WidgetID.DialogSprite.TEXT),
++	DIALOG2_SPRITE(WidgetID.DIALOG_SPRITE2_ID, 0),
++	DIALOG2_SPRITE_SPRITE1(WidgetID.DIALOG_SPRITE2_ID, WidgetID.DialogSprite2.SPRITE1),
++	DIALOG2_SPRITE_SPRITE2(WidgetID.DIALOG_SPRITE2_ID, WidgetID.DialogSprite2.SPRITE2),
++	DIALOG2_SPRITE_TEXT(WidgetID.DIALOG_SPRITE2_ID, WidgetID.DialogSprite2.TEXT),
++	DIALOG2_SPRITE_CONTINUE(WidgetID.DIALOG_SPRITE2_ID, WidgetID.DialogSprite2.CONTINUE),
+ 
+ 	DIALOG_NPC(WidgetID.DIALOG_NPC_GROUP_ID, 0),
+ 	DIALOG_NPC_NAME(WidgetID.DIALOG_NPC_GROUP_ID, WidgetID.DialogNPC.NAME),
+@@ -346,29 +363,50 @@
+ 
+ 	BA_HEAL_WAVE_TEXT(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.CURRENT_WAVE),
+ 	BA_HEAL_CALL_TEXT(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.TO_CALL),
+-	BA_HEAL_LISTEN_TEXT(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.CORRECT_STYLE),
++	BA_HEAL_LISTEN_TEXT(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.LISTEN),
+ 	BA_HEAL_ROLE_TEXT(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.ROLE),
+ 	BA_HEAL_ROLE_SPRITE(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.ROLE_SPRITE),
+ 
++	BA_HEAL_TEAMMATE1(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.HLR.TEAMMATE1),
++	BA_HEAL_TEAMMATE2(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.HLR.TEAMMATE2),
++	BA_HEAL_TEAMMATE3(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.HLR.TEAMMATE3),
++	BA_HEAL_TEAMMATE4(WidgetID.BA_HEALER_GROUP_ID, WidgetID.BarbarianAssault.HLR.TEAMMATE4),
++
+ 	BA_COLL_WAVE_TEXT(WidgetID.BA_COLLECTOR_GROUP_ID, WidgetID.BarbarianAssault.CURRENT_WAVE),
+ 	BA_COLL_CALL_TEXT(WidgetID.BA_COLLECTOR_GROUP_ID, WidgetID.BarbarianAssault.TO_CALL),
+-	BA_COLL_LISTEN_TEXT(WidgetID.BA_COLLECTOR_GROUP_ID, WidgetID.BarbarianAssault.CORRECT_STYLE),
++	BA_COLL_LISTEN_TEXT(WidgetID.BA_COLLECTOR_GROUP_ID, WidgetID.BarbarianAssault.LISTEN),
+ 	BA_COLL_ROLE_TEXT(WidgetID.BA_COLLECTOR_GROUP_ID, WidgetID.BarbarianAssault.ROLE),
+ 	BA_COLL_ROLE_SPRITE(WidgetID.BA_COLLECTOR_GROUP_ID, WidgetID.BarbarianAssault.ROLE_SPRITE),
+ 
+ 	BA_ATK_WAVE_TEXT(WidgetID.BA_ATTACKER_GROUP_ID, WidgetID.BarbarianAssault.CURRENT_WAVE),
+ 	BA_ATK_CALL_TEXT(WidgetID.BA_ATTACKER_GROUP_ID, WidgetID.BarbarianAssault.ATK.TO_CALL),
+-	BA_ATK_LISTEN_TEXT(WidgetID.BA_ATTACKER_GROUP_ID, WidgetID.BarbarianAssault.CORRECT_STYLE),
++	BA_ATK_LISTEN_TEXT(WidgetID.BA_ATTACKER_GROUP_ID, WidgetID.BarbarianAssault.ATK.LISTEN),
+ 	BA_ATK_ROLE_TEXT(WidgetID.BA_ATTACKER_GROUP_ID, WidgetID.BarbarianAssault.ATK.ROLE),
+ 	BA_ATK_ROLE_SPRITE(WidgetID.BA_ATTACKER_GROUP_ID, WidgetID.BarbarianAssault.ATK.ROLE_SPRITE),
+ 
+ 	BA_DEF_WAVE_TEXT(WidgetID.BA_DEFENDER_GROUP_ID, WidgetID.BarbarianAssault.CURRENT_WAVE),
+ 	BA_DEF_CALL_TEXT(WidgetID.BA_DEFENDER_GROUP_ID, WidgetID.BarbarianAssault.TO_CALL),
+-	BA_DEF_LISTEN_TEXT(WidgetID.BA_DEFENDER_GROUP_ID, WidgetID.BarbarianAssault.CORRECT_STYLE),
++	BA_DEF_LISTEN_TEXT(WidgetID.BA_DEFENDER_GROUP_ID, WidgetID.BarbarianAssault.LISTEN),
+ 	BA_DEF_ROLE_TEXT(WidgetID.BA_DEFENDER_GROUP_ID, WidgetID.BarbarianAssault.ROLE),
+ 	BA_DEF_ROLE_SPRITE(WidgetID.BA_DEFENDER_GROUP_ID, WidgetID.BarbarianAssault.ROLE_SPRITE),
+ 
+ 	BA_REWARD_TEXT(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_TEXT),
++	BA_RUNNERS_PASSED(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.RUNNERS_PASSED),
++	BA_HITPOINTS_REPLENISHED(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.HITPOINTS_REPLENISHED),
++	BA_WRONG_POISON_PACKS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.WRONG_POISON_PACKS_USED),
++	BA_EGGS_COLLECTED(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.EGGS_COLLECTED),
++	BA_FAILED_ATTACKER_ATTACKS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.FAILED_ATTACKER_ATTACKS),
++	BA_RUNNERS_PASSED_POINTS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.RUNNERS_PASSED_POINTS),
++	BA_RANGERS_KILLED(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.RANGERS_KILLED),
++	BA_FIGHTERS_KILLED(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.FIGHTERS_KILLED),
++	BA_HEALERS_KILLED(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.HEALERS_KILLED),
++	BA_RUNNERS_KILLED(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.RUNNERS_KILLED),
++	BA_HITPOINTS_REPLENISHED_POINTS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.HITPOINTS_REPLENISHED_POINTS),
++	BA_WRONG_POISON_PACKS_POINTS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.WRONG_POISON_PACKS_USED_POINTS),
++	BA_EGGS_COLLECTED_POINTS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.EGGS_COLLECTED_POINTS),
++	BA_FAILED_ATTACKER_ATTACKS_POINTS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.FAILED_ATTACKER_ATTACKS_POINTS),
++	BA_HONOUR_POINTS_REWARD(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.HONOUR_POINTS_REWARD),
++	BA_BASE_POINTS(WidgetID.BA_REWARD_GROUP_ID, WidgetID.BarbarianAssault.REWARD_VALUES.BASE_POINTS),
+ 
+ 	LEVEL_UP(WidgetID.LEVEL_UP_GROUP_ID, 0),
+ 	LEVEL_UP_SKILL(WidgetID.LEVEL_UP_GROUP_ID, WidgetID.LevelUp.SKILL),
+@@ -454,18 +492,173 @@
+ 
+ 	MINIGAME_TELEPORT_BUTTON(WidgetID.MINIGAME_TAB_ID, WidgetID.Minigames.TELEPORT_BUTTON),
+ 
+-	SPELL_LUMBRIDGE_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.StandardSpellBook.LUMBRIDGE_HOME_TELEPORT),
+-	SPELL_EDGEVILLE_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.AncientSpellBook.EDGEVILLE_HOME_TELEPORT),
+-	SPELL_LUNAR_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.LunarSpellBook.LUNAR_HOME_TELEPORT),
+-	SPELL_ARCEUUS_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.ArceuusSpellBook.ARCEUUS_HOME_TELEPORT),
+-
++	PVP_CONTAINER(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.PVP_WIDGET_CONTAINER),
+ 	PVP_SKULL_CONTAINER(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.SKULL_CONTAINER),
++	PVP_SKULL(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.SKULL),
++	PVP_ATTACK_RANGE(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.ATTACK_RANGE),
+ 	PVP_WORLD_SAFE_ZONE(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.SAFE_ZONE),
+ 
+ 	PVP_WILDERNESS_LEVEL(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.WILDERNESS_LEVEL),
++
+ 	PVP_BOUNTY_HUNTER_INFO(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.BOUNTY_HUNTER_INFO),
+ 	PVP_KILLDEATH_COUNTER(WidgetID.PVP_GROUP_ID, WidgetID.Pvp.KILLDEATH_RATIO),
+ 
++	SPELLBOOK_FILTERED_BOUNDS(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FILTERED_SPELLS_BOUNDS),
++
++	/* STANDARD SPELL BOOK WIDGETS*/
++	SPELL_LUMBRIDGE_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LUMBRIDGE_HOME_TELEPORT),
++	SPELL_WIND_STRIKE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WIND_STRIKE),
++	SPELL_CONFUSE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CONFUSE),
++	SPELL_ENCHANT_CROSSBOW_BOLT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ENCHANT_CROSSBOW_BOLT),
++	SPELL_WATER_STRIKE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WATER_STRIKE),
++	SPELL_LVL_1_ENCHANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LVL_1_ENCHANT),
++	SPELL_EARTH_STRIKE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.EARTH_STRIKE),
++	SPELL_WEAKEN(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WEAKEN),
++	SPELL_FIRE_STRIKE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FIRE_STRIKE),
++	SPELL_BONES_TO_BANANAS(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BONES_TO_BANANAS),
++	SPELL_WIND_BOLT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WIND_BOLT),
++	SPELL_CURSE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CURSE),
++	SPELL_BIND(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BIND),
++	SPELL_LOW_LEVEL_ALCHEMY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LOW_LEVEL_ALCHEMY),
++	SPELL_WATER_BOLT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WATER_BOLT),
++	SPELL_VARROCK_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.VARROCK_TELEPORT),
++	SPELL_LVL_2_ENCHANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LVL_2_ENCHANT),
++	SPELL_EARTH_BOLT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.EARTH_BOLT),
++	SPELL_LUMBRIDGE_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LUMBRIDGE_TELEPORT),
++	SPELL_TELEKINETIC_GRAB(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELEKINETIC_GRAB),
++	SPELL_FIRE_BOLT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FIRE_BOLT),
++	SPELL_FALADOR_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FALADOR_TELEPORT),
++	SPELL_CRUMBLE_UNDEAD(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CRUMBLE_UNDEAD),
++	SPELL_TELEPORT_TO_HOUSE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELEPORT_TO_HOUSE),
++	SPELL_WIND_BLAST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WIND_BLAST),
++	SPELL_SUPERHEAT_ITEM(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SUPERHEAT_ITEM),
++	SPELL_CAMELOT_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CAMELOT_TELEPORT),
++	SPELL_WATER_BLAST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WATER_BLAST),
++	SPELL_LVL_3_ENCHANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LVL_3_ENCHANT),
++	SPELL_IBAN_BLAST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.IBAN_BLAST),
++	SPELL_SNARE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SNARE),
++	SPELL_MAGIC_DART(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.MAGIC_DART),
++	SPELL_ARDOUGNE_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ARDOUGNE_TELEPORT),
++	SPELL_EARTH_BLAST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.EARTH_BLAST),
++	SPELL_HIGH_LEVEL_ALCHEMY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.HIGH_LEVEL_ALCHEMY),
++	SPELL_CHARGE_WATER_ORB(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CHARGE_WATER_ORB),
++	SPELL_LVL_4_ENCHANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LVL_4_ENCHANT),
++	SPELL_WATCHTOWER_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WATCHTOWER_TELEPORT),
++	SPELL_FIRE_BLAST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FIRE_BLAST),
++	SPELL_CHARGE_EARTH_ORB(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CHARGE_EARTH_ORB),
++	SPELL_BONES_TO_PEACHES(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BONES_TO_PEACHES),
++	SPELL_SARADOMIN_STRIKE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SARADOMIN_STRIKE),
++	SPELL_CLAWS_OF_GUTHIX(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CLAWS_OF_GUTHIX),
++	SPELL_FLAMES_OF_ZAMORAK(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FLAMES_OF_ZAMORAK),
++	SPELL_TROLLHEIM_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TROLLHEIM_TELEPORT),
++	SPELL_WIND_WAVE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WIND_WAVE),
++	SPELL_CHARGE_FIRE_ORB(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CHARGE_FIRE_ORB),
++	SPELL_TELEPORT_TO_APE_ATOLL(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELEPORT_TO_APE_ATOLL),
++	SPELL_WATER_WAVE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WATER_WAVE),
++	SPELL_CHARGE_AIR_ORB(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CHARGE_AIR_ORB),
++	SPELL_VULNERABILITY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.VULNERABILITY),
++	SPELL_LVL_5_ENCHANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LVL_5_ENCHANT),
++	SPELL_TELEPORT_TO_KOUREND(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELEPORT_TO_KOUREND),
++	SPELL_EARTH_WAVE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.EARTH_WAVE),
++	SPELL_ENFEEBLE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ENFEEBLE),
++	SPELL_FIRE_WAVE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FIRE_WAVE),
++	SPELL_ENTANGLE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ENTANGLE),
++	SPELL_TELEOTHER_LUMBRIDGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELEOTHER_LUMBRIDGE),
++	SPELL_STUN(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.STUN),
++	SPELL_CHARGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CHARGE),
++	SPELL_WIND_SURGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WIND_SURGE),
++	SPELL_TELEOTHER_FALADOR(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELEOTHER_FALADOR),
++	SPELL_WATER_SURGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WATER_SURGE),
++	SPELL_TELE_BLOCK(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_BLOCK),
++	SPELL_LVL_6_ENCHANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LVL_6_ENCHANT),
++	SPELL_TELEOTHER_CAMELOT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELEOTHER_CAMELOT),
++	SPELL_EARTH_SURGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.EARTH_SURGE),
++	SPELL_LVL_7_ENCHANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LVL_7_ENCHANT),
++	SPELL_FIRE_SURGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FIRE_SURGE),
++	SPELL_BOUNTY_TARGET_TELEPORT2(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BOUNTY_TARGET_TELEPORT),
++	/* END OF STANDARD SPELL BOOK WIDGETS*/
++
++	/* ANCIENT SPELL BOOK WIDGETS*/
++	SPELL_ICE_RUSH(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ICE_RUSH),
++	SPELL_ICE_BLITZ(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ICE_BLITZ),
++	SPELL_ICE_BURST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ICE_BURST),
++	SPELL_ICE_BARRAGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ICE_BARRAGE),
++	SPELL_BLOOD_RUSH(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BLOOD_RUSH),
++	SPELL_BLOOD_BLITZ(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BLOOD_BLITZ),
++	SPELL_BLOOD_BURST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BLOOD_BURST),
++	SPELL_BLOOD_BARRAGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BLOOD_BARRAGE),
++	SPELL_SMOKE_RUSH(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SMOKE_RUSH),
++	SPELL_SMOKE_BLITZ(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SMOKE_BLITZ),
++	SPELL_SMOKE_BURST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SMOKE_BURST),
++	SPELL_SMOKE_BARRAGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SMOKE_BARRAGE),
++	SPELL_SHADOW_RUSH(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SHADOW_RUSH),
++	SPELL_SHADOW_BLITZ(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SHADOW_BLITZ),
++	SPELL_SHADOW_BURST(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SHADOW_BURST),
++	SPELL_SHADOW_BARRAGE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SHADOW_BARRAGE),
++	SPELL_PADDEWWA_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.PADDEWWA_TELEPORT),
++	SPELL_SENNTISTEN_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SENNTISTEN_TELEPORT),
++	SPELL_KHARYRLL_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.KHARYRLL_TELEPORT),
++	SPELL_LASSAR_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LASSAR_TELEPORT),
++	SPELL_DAREEYAK_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.DAREEYAK_TELEPORT),
++	SPELL_CARRALLANGER_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CARRALLANGER_TELEPORT),
++	SPELL_ANNAKARL_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ANNAKARL_TELEPORT),
++	SPELL_GHORROCK_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.GHORROCK_TELEPORT),
++	SPELL_EDGEVILLE_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.EDGEVILLE_HOME_TELEPORT),
++	SPELL_BOUNTY_TARGET_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BOUNTY_TARGET_TELEPORT),
++	/* END OF ANCIENT SPELL BOOK WIDGETS*/
++
++	/* LUNAR SPELL BOOK WIDGETS*/
++	SPELL_LUNAR_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.LUNAR_HOME_TELEPORT),
++	SPELL_VENGEANCE_OTHER(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.VENGEANCE_OTHER),
++	SPELL_VENGEANCE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.VENGEANCE),
++	SPELL_BOUNTY_TARGET_TELEPORT3(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BOUNTY_TARGET_TELEPORT),
++	SPELL_BAKE_PIE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BAKE_PIE),
++	SPELL_CURE_PLANT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CURE_PLANT),
++	SPELL_MONSTER_EXAMINE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.MONSTER_EXAMINE),
++	SPELL_NPC_CONTACT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.NPC_CONTACT),
++	SPELL_CURE_OTHER(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CURE_OTHER),
++	SPELL_HUMIDIFY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.HUMIDIFY),
++	SPELL_MOONCLAN_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.MOONCLAN_TELEPORT),
++	SPELL_TELE_GROUP_MOONCLAN(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_GROUP_MOONCLAN),
++	SPELL_CURE_ME(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CURE_ME),
++	SPELL_HUNTER_KIT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.HUNTER_KIT),
++	SPELL_WATERBIRTH_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.WATERBIRTH_TELEPORT),
++	SPELL_TELE_GROUP_WATERBIRTH(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_GROUP_WATERBIRTH),
++	SPELL_CURE_GROUP(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CURE_GROUP),
++	SPELL_STAT_SPY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.STAT_SPY),
++	SPELL_BARBARIAN_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BARBARIAN_TELEPORT),
++	SPELL_TELE_GROUP_BARBARIAN(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_GROUP_BARBARIAN),
++	SPELL_SUPERGLASS_MAKE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SUPERGLASS_MAKE),
++	SPELL_TAN_LEATHER(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TAN_LEATHER),
++	SPELL_KHAZARD_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.KHAZARD_TELEPORT),
++	SPELL_TELE_GROUP_KHAZARD(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_GROUP_KHAZARD),
++	SPELL_DREAM(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.DREAM),
++	SPELL_STRING_JEWELLERY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.STRING_JEWELLERY),
++	SPELL_STAT_RESTORE_POT_SHARE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.STAT_RESTORE_POT_SHARE),
++	SPELL_MAGIC_IMBUE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.MAGIC_IMBUE),
++	SPELL_FERTILE_SOIL(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FERTILE_SOIL),
++	SPELL_BOOST_POTION_SHARE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.BOOST_POTION_SHARE),
++	SPELL_FISHING_GUILD_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.FISHING_GUILD_TELEPORT),
++	SPELL_TELE_GROUP_FISHING_GUILD(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_GROUP_FISHING_GUILD),
++	SPELL_PLANK_MAKE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.PLANK_MAKE),
++	SPELL_CATHERBY_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.CATHERBY_TELEPORT),
++	SPELL_TELE_GROUP_CATHERBY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_GROUP_CATHERBY),
++	SPELL_RECHARGE_DRAGONSTONE(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.RECHARGE_DRAGONSTONE),
++	SPELL_ICE_PLATEAU_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ICE_PLATEAU_TELEPORT),
++	SPELL_TELE_GROUP_ICE_PLATEAU(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TELE_GROUP_ICE_PLATEAU),
++	SPELL_ENERGY_TRANSFER(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ENERGY_TRANSFER),
++	SPELL_HEAL_OTHER(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.HEAL_OTHER),
++	SPELL_HEAL_GROUP(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.HEAL_GROUP),
++	SPELL_SPELLBOOK_SWAP(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SPELLBOOK_SWAP),
++	SPELL_GEOMANCY(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.GEOMANCY),
++	SPELL_SPIN_FLAX(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.SPIN_FLAX),
++	SPELL_OURANIA_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.OURANIA_TELEPORT),
++	/* END OF LUNAR SPELL BOOK WIDGETS*/
++	SPELL_TOOLTIP(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.TOOLTIP),
++	/* ARCEUUS SPELL BOOK WIDGETS*/
++	SPELL_ARCEUUS_HOME_TELEPORT(WidgetID.SPELLBOOK_GROUP_ID, WidgetID.SpellBook.ARCEUUS_HOME_TELEPORT),
++	/* END OF ARCEUUS SPELL BOOK WIDGETS*/
++
+ 	KOUREND_FAVOUR_OVERLAY(WidgetID.KOUREND_FAVOUR_GROUP_ID, WidgetID.KourendFavour.KOUREND_FAVOUR_OVERLAY),
+ 	ZEAH_MESS_HALL_COOKING_DISPLAY(WidgetID.ZEAH_MESS_HALL_GROUP_ID, WidgetID.Zeah.MESS_HALL_COOKING_DISPLAY),
+ 
+@@ -473,6 +666,10 @@
+ 
+ 	SKOTIZO_CONTAINER(WidgetID.SKOTIZO_GROUP_ID, WidgetID.Skotizo.CONTAINER),
+ 
++	MULTICOMBAT_FIXED(WidgetID.FIXED_VIEWPORT_GROUP_ID, WidgetID.FixedViewport.MULTICOMBAT_INDICATOR),
++	MULTICOMBAT_RESIZEABLE(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewport.MULTICOMBAT_INDICATOR),
++
++
+ 	FULLSCREEN_MAP_ROOT(WidgetID.FULLSCREEN_MAP_GROUP_ID, WidgetID.FullScreenMap.ROOT),
+ 
+ 	QUESTLIST_BOX(WidgetID.QUESTLIST_GROUP_ID, WidgetID.QuestList.BOX),
+@@ -482,7 +679,64 @@
+ 	QUESTLIST_MEMBERS_CONTAINER(WidgetID.QUESTLIST_GROUP_ID, WidgetID.QuestList.MEMBERS_CONTAINER),
+ 	QUESTLIST_MINIQUEST_CONTAINER(WidgetID.QUESTLIST_GROUP_ID, WidgetID.QuestList.MINIQUEST_CONTAINER),
+ 
+-	QUESTTAB_QUEST_TAB(WidgetID.QUESTTAB_GROUP_ID, WidgetID.QuestTab.QUEST_TAB);
++	MUSICTAB_INTERFACE(WidgetID.MUSICTAB_GROUP_ID, 1),
++	MUSICTAB_SONG_BOX(WidgetID.MUSICTAB_GROUP_ID, 2),
++	MUSICTAB_ALL_SONGS(WidgetID.MUSICTAB_GROUP_ID, 3),
++	MUSICTAB_SCROLLBAR(WidgetID.MUSICTAB_GROUP_ID, 4),
++	MUSICTAB_PLAYING(WidgetID.MUSICTAB_GROUP_ID, 5),
++	MUSICTAB_CURRENT_SONG_NAME(WidgetID.MUSICTAB_GROUP_ID, 6),
++	MUSICTAB_AUTO_BUTTON_LISTENER(WidgetID.MUSICTAB_GROUP_ID, 7),
++	MUSICTAB_AUTO_BUTTON(WidgetID.MUSICTAB_GROUP_ID, 8),
++	MUSICTAB_MANUAL_BUTTON_LISTENER(WidgetID.MUSICTAB_GROUP_ID, 9),
++	MUSICTAB_MANUAL_BUTTON(WidgetID.MUSICTAB_GROUP_ID, 10),
++	MUSICTAB_LOOP_BUTTON_LISTENER(WidgetID.MUSICTAB_GROUP_ID, 11),
++	MUSICTAB_LOOP_BUTTON(WidgetID.MUSICTAB_GROUP_ID, 12),
++	MUSICTAB_UNLOCKED_SONGS(WidgetID.MUSICTAB_GROUP_ID, 13),
++
++	QUESTTAB_QUEST_TAB(WidgetID.QUESTTAB_GROUP_ID, WidgetID.QuestTab.QUEST_TAB),
++
++	EQUIPMENT_MELEE_STRENGTH(WidgetID.EQUIPMENT_PAGE_GROUP_ID, WidgetID.EquipmentWidgetIdentifiers.MELEE_STRENGTH),
++	EQUIPMENT_RANGED_STRENGTH(WidgetID.EQUIPMENT_PAGE_GROUP_ID, WidgetID.EquipmentWidgetIdentifiers.RANGED_STRENGTH),
++	EQUIPMENT_MAGIC_DAMAGE(WidgetID.EQUIPMENT_PAGE_GROUP_ID, WidgetID.EquipmentWidgetIdentifiers.MAGIC_DAMAGE),
++	EQUIP_YOUR_CHARACTER(WidgetID.EQUIPMENT_PAGE_GROUP_ID, WidgetID.EquipmentWidgetIdentifiers.EQUIP_YOUR_CHARACTER),
++
++	ITEMS_KEPT_ON_DEATH_CONTAINER(WidgetID.KEPT_ON_DEATH_GROUP_ID, WidgetID.KeptOnDeath.KEPT_ITEMS_CONTAINER),
++	ITEMS_LOST_ON_DEATH_CONTAINER(WidgetID.KEPT_ON_DEATH_GROUP_ID, WidgetID.KeptOnDeath.LOST_ITEMS_CONTAINER),
++	ITEMS_KEPT_INFORMATION_CONTAINER(WidgetID.KEPT_ON_DEATH_GROUP_ID, WidgetID.KeptOnDeath.INFORMATION_CONTAINER),
++	ITEMS_KEPT_SAFE_ZONE_CONTAINER(WidgetID.KEPT_ON_DEATH_GROUP_ID, WidgetID.KeptOnDeath.SAFE_ZONE_CONTAINER),
++	ITEMS_KEPT_CUSTOM_TEXT_CONTAINER(WidgetID.KEPT_ON_DEATH_GROUP_ID, WidgetID.KeptOnDeath.CUSTOM_TEXT_CONTAINER),
++	ITEMS_LOST_VALUE(WidgetID.KEPT_ON_DEATH_GROUP_ID, WidgetID.KeptOnDeath.LOST_ITEMS_VALUE),
++	ITEMS_KEPT_MAX(WidgetID.KEPT_ON_DEATH_GROUP_ID, WidgetID.KeptOnDeath.MAX_ITEMS_KEPT_ON_DEATH),
++
++	FIXED_BANK_PIN(WidgetID.FIXED_VIEWPORT_GROUP_ID, WidgetID.FixedViewport.BANK_PIN),
++	RESIZABLE_BANK_PIN(WidgetID.RESIZABLE_VIEWPORT_OLD_SCHOOL_BOX_GROUP_ID, WidgetID.ResizableViewport.BANK_PIN),
++	RESIZABLE_BOTTOM_LINE_BANK_PIN(WidgetID.RESIZABLE_VIEWPORT_BOTTOM_LINE_GROUP_ID, WidgetID.ResizableViewportBottomLine.BANK_PIN),
++	BANK_PIN_TOP_LEFT_TEXT(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.TOP_LEFT_TEXT),
++	BANK_PIN_EXIT_BUTTON(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.EXIT_BUTTON),
++	BANK_PIN_FORGOT_BUTTON(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.FORGOT_BUTTON),
++	BANK_PIN_FIRST_ENTERED(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.FIRST_ENTERED),
++	BANK_PIN_SECOND_ENTERED(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.SECOND_ENTERED),
++	BANK_PIN_THIRD_ENTERED(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.THIRD_ENTERED),
++	BANK_PIN_FOURTH_ENTERED(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.FOURTH_ENTERED),
++	BANK_PIN_INSTRUCTION_TEXT(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.INSTRUCTION_TEXT),
++	BANK_PIN_1(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_1),
++	BANK_PIN_2(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_2),
++	BANK_PIN_3(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_3),
++	BANK_PIN_4(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_4),
++	BANK_PIN_5(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_5),
++	BANK_PIN_6(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_6),
++	BANK_PIN_7(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_7),
++	BANK_PIN_8(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_8),
++	BANK_PIN_9(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_9),
++	BANK_PIN_0(WidgetID.BANK_PIN_GROUP_ID, WidgetID.BankPin.BUTTON_0),
++
++	XP_DROP_1(WidgetID.EXPERIENCE_DROP_GROUP_ID, WidgetID.ExperienceDrop.DROP_1),
++	XP_DROP_2(WidgetID.EXPERIENCE_DROP_GROUP_ID, WidgetID.ExperienceDrop.DROP_2),
++	XP_DROP_3(WidgetID.EXPERIENCE_DROP_GROUP_ID, WidgetID.ExperienceDrop.DROP_3),
++	XP_DROP_4(WidgetID.EXPERIENCE_DROP_GROUP_ID, WidgetID.ExperienceDrop.DROP_4),
++	XP_DROP_5(WidgetID.EXPERIENCE_DROP_GROUP_ID, WidgetID.ExperienceDrop.DROP_5),
++	XP_DROP_6(WidgetID.EXPERIENCE_DROP_GROUP_ID, WidgetID.ExperienceDrop.DROP_6),
++	XP_DROP_7(WidgetID.EXPERIENCE_DROP_GROUP_ID, WidgetID.ExperienceDrop.DROP_7);
+ 
+ 	private final int groupId;
+ 	private final int childId;
+@@ -569,4 +823,4 @@
+ 		return groupId << 16 | childId;
+ 	}
+ 
+-}
++}
+\ No newline at end of file
+Index: runelite-client/src/test/java/net/runelite/client/plugins/cooking/CookingPluginTest.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-client/src/test/java/net/runelite/client/plugins/cooking/CookingPluginTest.java	(revision Local Version)
++++ runelite-client/src/test/java/net/runelite/client/plugins/cooking/CookingPluginTest.java	(revision Shelved Version)
+@@ -109,19 +109,5 @@
+ 		assertEquals(COOKING_MESSAGES.length, cookingSession.getCookAmount());
+ 	}
+ 
+-	@Test
+-	public void testOnGraphicChanged()
+-	{
+-		Player player = mock(Player.class);
+-		when(player.getGraphic()).thenReturn(GraphicID.WINE_MAKE);
+-
+-		when(config.fermentTimer()).thenReturn(true);
+-		when(client.getLocalPlayer()).thenReturn(player);
+ 
+-		GraphicChanged graphicChanged = new GraphicChanged();
+-		graphicChanged.setActor(player);
+-		cookingPlugin.onGraphicChanged(graphicChanged);
+-
+-		verify(infoBoxManager).addInfoBox(any(FermentTimer.class));
+-	}
+ }
+\ No newline at end of file
+Index: runelite-api/src/main/java/net/runelite/api/ProjectileID.java
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- runelite-api/src/main/java/net/runelite/api/ProjectileID.java	(revision Local Version)
++++ runelite-api/src/main/java/net/runelite/api/ProjectileID.java	(revision Shelved Version)
+@@ -44,14 +44,21 @@
+ 	public static final int VASA_RANGED_AOE = 1329;
+ 	public static final int TEKTON_METEOR_AOE = 660;
+ 
+-	public static final int OLM_FALLING_CRYSTAL_AOE = -1; //please help
+-	public static final int OLM_BURNING_AOE = -1;
++	public static final int OLM_FALLING_CRYSTAL = 1357;
++	public static final int OLM_BURNING = 1349;
++	public static final int OLM_FALLING_CRYSTAL_TRAIL = 1352;
++	public static final int OLM_ACID_TRAIL = 1354;
++	public static final int OLM_FIRE_LINE = 1347;
++	public static final int OLM_MAGE_ATTACK = 1339;
++	public static final int OLM_RANGE_ATTACK = 1340;
+ 
+ 	public static final int VORKATH_BOMB_AOE = 1481;
+ 	public static final int VORKATH_POISON_POOL_AOE = 1483;
+ 	public static final int VORKATH_TICK_FIRE_AOE = 1482;
+ 	public static final int VORKATH_SPAWN_AOE = 1484;
+ 
++	public static final int ADDY_DRAG_POISON = 1486;
++
+ 	public static final int GALVEK_MINE = 1495;
+ 	public static final int GALVEK_BOMB = 1491;
+ 
+@@ -71,6 +78,10 @@
+ 	public static final int DEMONIC_GORILLA_MAGIC = 1304;
+ 	public static final int DEMONIC_GORILLA_BOULDER = 856;
+ 
++	public static final int XARPUS_ACID = 1555;
++	public static final int CERB_FIRE = 1247;
++
++
+ 	/**
+ 	 * missing: marble gargoyle, superior dark beast
+ 	 */
+@@ -83,5 +94,12 @@
+ 	public static final int VORKATH_MAGIC = 1479;
+ 	public static final int VORKATH_PRAYER_DISABLE = 1471;
+ 	public static final int VORKATH_VENOM = 1470;
+-	public static final int VORKATH_ICE = 350;
++	public static final int VORKATH_ICE = 395;
++
++	public static final int HYDRA_MAGIC = 1662;
++	public static final int HYDRA_RANGED = 1663;
++	public static final int HYDRA_POISON = 1644;
++	public static final int HYDRA_LIGHTNING = 1664;
++	public static final int HYDRA_LIGHTNING_2 = 1665;
++	public static final int DRAKE_BREATH = 1637;
+ }
+Index: resources/META-INF/MANIFEST.MF
+===================================================================
+--- resources/META-INF/MANIFEST.MF	(revision Shelved Version)
++++ resources/META-INF/MANIFEST.MF	(revision Shelved Version)
+@@ -0,0 +1,3 @@
++Manifest-Version: 1.0
++Main-Class: net.runelite.client.RuneLite
++

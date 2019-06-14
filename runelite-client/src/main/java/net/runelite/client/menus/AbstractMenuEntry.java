@@ -4,8 +4,9 @@ import joptsimple.internal.Strings;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import net.runelite.api.MenuEntry;
-import static net.runelite.client.menus.MenuManager.LEVEL_PATTERN;
 import net.runelite.client.util.Text;
+
+import static net.runelite.client.menus.MenuManager.LEVEL_PATTERN;
 
 @EqualsAndHashCode
 public class AbstractMenuEntry

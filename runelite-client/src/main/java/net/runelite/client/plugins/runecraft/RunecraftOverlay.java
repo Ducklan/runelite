@@ -13,35 +13,35 @@ import net.runelite.client.ui.overlay.components.TitleComponent;
 
 public class RunecraftOverlay extends Overlay
 {
-    private final RunecraftPlugin plugin;
-    private final Client client;
-    private final PanelComponent panel = new PanelComponent();
+	private final RunecraftPlugin plugin;
+	private final Client client;
+	private final PanelComponent panel = new PanelComponent();
 
-    @Inject
-    RunecraftOverlay(RunecraftPlugin plugin, Client client)
-    {
-        this.plugin = plugin;
-        this.client = client;
-        setPosition(OverlayPosition.CANVAS_TOP_RIGHT);
-        panel.setOrientation(ComponentOrientation.VERTICAL);
-    }
+	@Inject
+	RunecraftOverlay(RunecraftPlugin plugin, Client client)
+	{
+		this.plugin = plugin;
+		this.client = client;
+		setPosition(OverlayPosition.CANVAS_TOP_RIGHT);
+		panel.setOrientation(ComponentOrientation.VERTICAL);
+	}
 
-    public Dimension render(Graphics2D graphics)
-    {
-        String text = "Pouch Has Degraded";
-        panel.getChildren().clear();
-        if (plugin.isDegradedPouchInInventory())
-        {
-            panel.getChildren().add(TitleComponent.builder()
-                    .text("Pouch Has Degraded")
-                    .color(Color.red)
-                    .build());
-            panel.setPreferredSize(new Dimension(graphics.getFontMetrics().stringWidth(text) + 5, 5));
-            return panel.render(graphics);
-        }
-        else
-        {
-            return null;
-        }
-    }
+	public Dimension render(Graphics2D graphics)
+	{
+		String text = "Pouch Has Degraded";
+		panel.getChildren().clear();
+		if (plugin.isDegradedPouchInInventory())
+		{
+			panel.getChildren().add(TitleComponent.builder()
+				.text("Pouch Has Degraded")
+				.color(Color.red)
+				.build());
+			panel.setPreferredSize(new Dimension(graphics.getFontMetrics().stringWidth(text) + 5, 5));
+			return panel.render(graphics);
+		}
+		else
+		{
+			return null;
+		}
+	}
 }

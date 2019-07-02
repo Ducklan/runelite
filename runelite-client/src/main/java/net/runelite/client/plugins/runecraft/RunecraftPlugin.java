@@ -36,10 +36,12 @@ import lombok.Getter;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.DecorativeObject;
+import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.GameState;
 import net.runelite.api.InventoryID;
 import net.runelite.api.Item;
 import net.runelite.api.ItemID;
+import net.runelite.api.MenuEntry;
 import net.runelite.api.NPC;
 import net.runelite.api.NpcID;
 import net.runelite.api.events.ChatMessage;
@@ -48,14 +50,19 @@ import net.runelite.api.events.DecorativeObjectDespawned;
 import net.runelite.api.events.DecorativeObjectSpawned;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.ItemContainerChanged;
+import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.api.events.NpcDespawned;
 import net.runelite.api.events.NpcSpawned;
 import net.runelite.client.Notifier;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.menus.MenuManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
+import static net.runelite.client.util.MenuUtil.swap;
+import net.runelite.client.util.Text;
+
 
 @PluginDescriptor(
 	name = "Runecraft",
@@ -64,6 +71,10 @@ import net.runelite.client.ui.overlay.OverlayManager;
 )
 public class RunecraftPlugin extends Plugin
 {
+	private static final int[] CASTLE_WARS = {9776};
+	private static final int[] FIRE_ALTAR = {10315};
+
+
 	private static final String POUCH_DECAYED_NOTIFICATION_MESSAGE = "Your rune pouch has decayed.";
 	private static final String POUCH_DECAYED_MESSAGE = "Your pouch has decayed through use.";
 	private static final List<Integer> DEGRADED_POUCHES = ImmutableList.of(
@@ -71,6 +82,14 @@ public class RunecraftPlugin extends Plugin
 		ItemID.LARGE_POUCH_5513,
 		ItemID.GIANT_POUCH_5515
 	);
+	private static final List<Integer> POUCHES = ImmutableList.of(
+		ItemID.SMALL_POUCH,
+		ItemID.MEDIUM_POUCH,
+		ItemID.LARGE_POUCH,
+		ItemID.GIANT_POUCH
+	);
+	private boolean wearingTiara;
+	private boolean wearingCape;
 
 	@Getter(AccessLevel.PACKAGE)
 	private final Set<DecorativeObject> abyssObjects = new HashSet<>();
@@ -91,10 +110,16 @@ public class RunecraftPlugin extends Plugin
 	private AbyssOverlay abyssOverlay;
 
 	@Inject
+	private RunecraftOverlay runecraftOverlay;
+
+	@Inject
 	private RunecraftConfig config;
 
 	@Inject
 	private Notifier notifier;
+
+	@Inject
+	private MenuManager menuManager;
 
 	@Provides
 	RunecraftConfig getConfig(ConfigManager configManager)
@@ -107,6 +132,7 @@ public class RunecraftPlugin extends Plugin
 	{
 		overlayManager.add(abyssOverlay);
 		abyssOverlay.updateConfig();
+		overlayManager.add(runecraftOverlay);
 	}
 
 	@Override
@@ -116,11 +142,29 @@ public class RunecraftPlugin extends Plugin
 		abyssObjects.clear();
 		darkMage = null;
 		degradedPouchInInventory = false;
+		overlayManager.remove(runecraftOverlay);
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event)
 	{
+		if (!event.getGroup().equals("runecraft"))
+		{
+			return;
+		}
+
+		if (event.getKey().equals("essPouch"))
+		{
+			if (config.essPouch())
+			{
+				menuManager.addSwap("deposit", "pouch", 2, 57, "fill", "pouch", 9, 1007);
+			}
+			else
+			{
+				menuManager.removeSwap("deposit", "pouch", 2, 57, "fill", "pouch", 9, 1007);
+			}
+		}
+
 		abyssOverlay.updateConfig();
 	}
 
@@ -140,6 +184,95 @@ public class RunecraftPlugin extends Plugin
 			}
 		}
 	}
+
+	@Subscribe
+	public void onMenuEntryAdded(MenuEntryAdded entry)
+	{
+		if (wearingCape || wearingTiara)
+		{
+			final String option = Text.removeTags(entry.getOption()).toLowerCase();
+			final String target = Text.removeTags(entry.getTarget()).toLowerCase();
+			final int id = entry.getIdentifier();
+
+			if (target.contains("ring of dueling") && option.contains("remove"))
+			{
+				if (client.getLocalPlayer().getWorldLocation().getRegionID() != 10315)
+				{ //changes duel ring teleport options based on location
+					swap(client, "duel arena", option, target);
+				}
+				else if (client.getLocalPlayer().getWorldLocation().getRegionID() == 10315)
+				{
+					swap(client, "castle wars", option, target);
+				}
+			}
+			else if (target.contains("crafting cape") && option.contains("remove")) //teleport for crafting cape
+			{
+				swap(client, "Teleport", option, target);
+			}
+			else if (target.contains("max cape") && option.contains("remove")) //teleport for max cape
+			{
+				swap(client, "Crafting Guild", option, target);
+			}
+			else if (target.contains("altar") && option.contains("craft")) // Don't accidentally click the altar to craft
+			{
+				hide(option, target, true);
+			}
+			else if (target.contains("pure") && option.contains("use")) // Don't accidentally use pure essence on altar
+			{
+				hide("use", target, true);
+				hide("drop", target, true);
+			}
+			else if (option.equals("fill") && id != 9)
+			{
+				swap(client, "empty", option, target);
+			}
+		}
+	}
+	
+	private void hide(String option, String target, boolean contains)
+	{
+		final MenuEntry[] entries = client.getMenuEntries();
+		int index = searchIndex(entries, option, target, contains);
+		if (index < 0)
+		{
+			return;
+		}
+
+		MenuEntry[] newEntries = new MenuEntry[entries.length - 1];
+		int i2 = 0;
+
+		for (int i = 0; i < entries.length - 1; i++)
+		{
+			if (i == index)
+			{
+				continue;
+			}
+
+			newEntries[i2] = entries[i];
+			i2++;
+		}
+
+		client.setMenuEntries(newEntries);
+	}
+
+	private int searchIndex(MenuEntry[] entries, String option, String target, boolean contains)
+	{
+		for (int i = entries.length - 1; i >= 0; i--)
+		{
+			MenuEntry entry = entries[i];
+			String entryOption = Text.removeTags(entry.getOption()).toLowerCase();
+			String entryTarget = Text.removeTags(entry.getTarget()).toLowerCase();
+
+			if (entryOption.contains(option.toLowerCase())
+				&& (entryTarget.equals(target) || (entryTarget.contains(target) && contains)))
+			{
+				return i;
+			}
+		}
+
+		return -1;
+	}
+
 
 	@Subscribe
 	public void onDecorativeObjectSpawned(DecorativeObjectSpawned event)
@@ -178,13 +311,20 @@ public class RunecraftPlugin extends Plugin
 	@Subscribe
 	public void onItemContainerChanged(ItemContainerChanged event)
 	{
-		if (event.getItemContainer() != client.getItemContainer(InventoryID.INVENTORY))
+		if (event.getItemContainer() == client.getItemContainer(InventoryID.INVENTORY))
 		{
-			return;
-		}
 
-		final Item[] items = event.getItemContainer().getItems();
-		degradedPouchInInventory = Stream.of(items).anyMatch(i -> DEGRADED_POUCHES.contains(i.getId()));
+			final Item[] items = event.getItemContainer().getItems();
+			degradedPouchInInventory = Stream.of(items).anyMatch(i -> DEGRADED_POUCHES.contains(i.getId()));
+		}
+		else if (event.getItemContainer() == client.getItemContainer(InventoryID.EQUIPMENT))
+		{
+			final Item[] items = event.getItemContainer().getItems();
+			wearingTiara = config.Lavas() && items[EquipmentInventorySlot.HEAD.getSlotIdx()].getId() == ItemID.FIRE_TIARA;
+			wearingCape = config.Lavas() && items[EquipmentInventorySlot.CAPE.getSlotIdx()].getId() == ItemID.RUNECRAFT_CAPE || config.Lavas() && items[EquipmentInventorySlot.CAPE.getSlotIdx()].getId() == ItemID.RUNECRAFT_CAPET || config.Lavas() && items[EquipmentInventorySlot.CAPE.getSlotIdx()].getId() == ItemID.MAX_CAPE_13342;
+
+			System.out.println("item changed" + wearingCape);
+		}
 	}
 
 	@Subscribe

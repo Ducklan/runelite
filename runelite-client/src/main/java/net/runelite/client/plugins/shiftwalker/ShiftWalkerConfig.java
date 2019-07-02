@@ -1,3 +1,4 @@
+    
 /*
  * Copyright (c) 2018, Plinko60
  * All rights reserved.
@@ -26,13 +27,31 @@ package net.runelite.client.plugins.shiftwalker;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
-// import net.runelite.client.config.ConfigItem;
+import net.runelite.client.config.ConfigItem;
 
 @ConfigGroup("shiftwalkhere")
 public interface ShiftWalkerConfig extends Config
 {
-/*
+    @ConfigItem(
+            keyName = "shiftWalk",
+            name = "Shift to Walk",
+            description = "For when you want Walk here as a priority"
+    )
+    default boolean shiftWalk()
+    {
+        return false;
+    }
 
+    @ConfigItem(
+            keyName = "shiftLoot",
+            name = "Shift to Loot",
+            description = "For when people stand on your loot"
+    )
+    default boolean shiftLoot()
+    {
+        return false;
+    }
+/*
 	@ConfigItem(
 		keyName = "shiftWalkEverything",
 		name = "Walk Under Everything",
@@ -43,7 +62,6 @@ public interface ShiftWalkerConfig extends Config
 	{
 		return true;
 	}
-
 	@ConfigItem(
 		keyName = "shiftWalkBoxTraps",
 		name = "Walk Under Box Traps",
@@ -53,7 +71,6 @@ public interface ShiftWalkerConfig extends Config
 	{
 		return true;
 	}
-
 	@ConfigItem(
 		keyName = "shiftWalkAttackOption",
 		name = "Walk Under Attack Options",

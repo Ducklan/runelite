@@ -38,17 +38,17 @@ import net.runelite.client.plugins.PluginDescriptor;
  * Shift Walker Plugin. Credit to MenuEntrySwapperPlugin for code some code structure used here.
  */
 @PluginDescriptor(
-	name = "Shift To Walk",
-	description = "Use Shift to toggle the Walk Here menu option. While pressed you will Walk rather than interact with objects.",
-	tags = {"npcs", "items", "objects"},
-	enabledByDefault = true
+		name = "Shift Walk Under",
+		description = "Use Shift to toggle the Walk Here menu option. While pressed you will Walk rather than interact with objects.",
+		tags = {"npcs", "items", "objects"},
+		enabledByDefault = false
 )
 
 public class ShiftWalkerPlugin extends Plugin
 {
 
 	private static final String WALK_HERE = "Walk here";
-
+	private static final String TAKE = "Take";
 	@Inject
 	private ShiftWalkerConfig config;
 
@@ -90,11 +90,20 @@ public class ShiftWalkerPlugin extends Plugin
 
 	void startPrioritizing()
 	{
-		menuManager.addPriorityEntry(WALK_HERE);
+		if (config.shiftLoot())
+		{
+			menuManager.addPriorityEntry(TAKE);
+		}
+
+		if (config.shiftWalk())
+		{
+			menuManager.addPriorityEntry(WALK_HERE);
+		}
 	}
 
 	void stopPrioritizing()
 	{
+		menuManager.removePriorityEntry(TAKE);
 		menuManager.removePriorityEntry(WALK_HERE);
 	}
 }

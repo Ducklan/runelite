@@ -28,8 +28,10 @@ import com.google.common.base.Strings;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics2D;
 import java.awt.Polygon;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.Area;
@@ -38,8 +40,11 @@ import net.runelite.api.Actor;
 import net.runelite.api.Client;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
+import net.runelite.api.Prayer;
 import net.runelite.api.TileObject;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.widgets.Widget;
 
 
 /**
@@ -76,7 +81,7 @@ public class OverlayUtil
 		graphics.setColor(color);
 		graphics.rotate(angle, center.getX(), center.getY());
 		graphics.drawRect(center.getX() - width / 2, center.getY() - height / 2, width, height);
-		graphics.rotate(-angle , center.getX(), center.getY());
+		graphics.rotate(-angle, center.getX(), center.getY());
 	}
 
 	public static void renderTextLocation(Graphics2D graphics, Point txtLoc, String text, Color color)
@@ -257,5 +262,70 @@ public class OverlayUtil
 		}
 
 		return result;
+	}
+
+	public static void renderActorTextAndImage(Graphics2D graphics, Actor actor, String text, Color color, BufferedImage image, int yOffset, int xOffset)
+	{
+		Point textLocation = new Point(actor.getConvexHull().getBounds().x + xOffset,
+				actor.getConvexHull().getBounds().y + yOffset);
+
+		renderImageLocation(graphics, textLocation, image);
+		xOffset = image.getWidth() + 1;
+		yOffset = (image.getHeight() - (int) graphics.getFontMetrics().getStringBounds(text, graphics).getHeight());
+		textLocation = new Point(textLocation.getX() + xOffset, textLocation.getY() + image.getHeight() - yOffset);
+		renderTextLocation(graphics, textLocation, text, color);
+	}
+
+	public static void renderTextLocation(Graphics2D graphics, String txtString, int fontSize, int fontStyle, Color fontColor, Point canvasPoint, boolean shadows, int yOffset)
+	{
+		graphics.setFont(new Font("Arial", fontStyle, fontSize));
+		if (canvasPoint != null)
+		{
+			final Point canvasCenterPoint = new Point(
+					canvasPoint.getX(),
+					canvasPoint.getY() + yOffset);
+			final Point canvasCenterPoint_shadow = new Point(
+					canvasPoint.getX() + 1,
+					canvasPoint.getY() + 1);
+			if (shadows)
+			{
+				renderTextLocation(graphics, canvasCenterPoint_shadow, txtString, Color.BLACK);
+			}
+			renderTextLocation(graphics, canvasCenterPoint, txtString, fontColor);
+		}
+	}
+
+	public static void drawTile(Graphics2D graphics, Client client, WorldPoint point, WorldPoint playerPoint, Color color, int strokeWidth, int outlineAlpha, int fillAlpha)
+	{
+		if (point.distanceTo(playerPoint) >= 32)
+		{
+			return;
+		}
+		LocalPoint lp = LocalPoint.fromWorld(client, point);
+		if (lp == null)
+		{
+			return;
+		}
+
+		Polygon poly = Perspective.getCanvasTilePoly(client, lp);
+		if (poly == null)
+		{
+			return;
+		}
+		graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), outlineAlpha));
+		graphics.setStroke(new BasicStroke(strokeWidth));
+		graphics.draw(poly);
+		graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), fillAlpha));
+		graphics.fill(poly);
+	}
+
+
+
+	private static Polygon rectangleToPolygon(Rectangle rect)
+	{
+		int[] xpoints = {rect.x, rect.x + rect.width, rect.x + rect.width, rect.x};
+		int[] ypoints = {rect.y, rect.y, rect.y + rect.height, rect.y + rect.height};
+
+		return new Polygon(xpoints, ypoints, 4);
 	}
 }

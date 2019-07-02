@@ -8,37 +8,23 @@
 
 package net.runelite.client.plugins.theatre;
 
+import java.awt.Color;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
-import java.awt.*;
 
 @ConfigGroup("Theatre")
 
 public interface TheatreConfig extends Config
 {
-	enum NYLOCAS
-	{
-		NONE,
-		MAGE,
-		MELEE,
-		RANGER
-	}
-
-	enum NYLOOPTION 
-	{
-		NONE,
-		TILE,
-		TIMER
-	}
-
 	@ConfigItem(
 		position = 0,
 		keyName = "showMaidenBloodToss",
 		name = "Show Maiden Blood Toss",
-		description = "Displays the tile location where tossed blood will land."
+		description = "Displays the tile location where tossed blood will land.",
+		group = "Maiden"
 	)
-	default boolean showMaidenBloodToss() 
+	default boolean showMaidenBloodToss()
 	{
 		return true;
 	}
@@ -47,9 +33,22 @@ public interface TheatreConfig extends Config
 		position = 1,
 		keyName = "showMaidenBloodSpawns",
 		name = "Show Maiden Blood Spawns",
-		description = "Show the tiles that blood spawns will travel to."
+		description = "Show the tiles that blood spawns will travel to.",
+		group = "Maiden"
 	)
-	default boolean showMaidenBloodSpawns() 
+	default boolean showMaidenBloodSpawns()
+	{
+		return true;
+	}
+
+	@ConfigItem(
+		position = 2,
+		keyName = "showNyloFreezeHighlights",
+		name = "Show Nylo Freeze Highlights",
+		description = "Show when to freeze Nylos at maiden. Say n1,n2,s1,s2 in chat for it to register.",
+		group = "Maiden"
+	)
+	default boolean showNyloFreezeHighlights()
 	{
 		return true;
 	}
@@ -58,10 +57,10 @@ public interface TheatreConfig extends Config
 		position = 2,
 		keyName = "showBloatIndicator",
 		name = "Show Bloat Status",
-		description = "Displays Bloat's status (asleep, wake, and enrage) using color code."
-		//group = "Bloat"
+		description = "Displays Bloat's status (asleep, wake, and enrage) using color code.",
+		group = "Bloat"
 	)
-	default boolean showBloatIndicator() 
+	default boolean showBloatIndicator()
 	{
 		return true;
 	}
@@ -70,10 +69,10 @@ public interface TheatreConfig extends Config
 		position = 3,
 		keyName = "showBloatHands",
 		name = "Show Bloat Hands",
-		description = "Highlights the falling hands inside Bloat."
-		//group = "Bloat"
+		description = "Highlights the falling hands inside Bloat.",
+		group = "Bloat"
 	)
-	default boolean showBloatHands() 
+	default boolean showBloatHands()
 	{
 		return true;
 	}
@@ -82,11 +81,11 @@ public interface TheatreConfig extends Config
 		position = 4,
 		keyName = "bloatFeet",
 		name = "Bloat Hands Rave Edition",
-		description = ""
-
+		description = "",
+		group = "Bloat"
 	)
-	default boolean BloatFeetIndicatorRaveEdition() 
-	{ 
+	default boolean BloatFeetIndicatorRaveEdition()
+	{
 		return false;
 	}
 
@@ -94,7 +93,8 @@ public interface TheatreConfig extends Config
 		position = 4,
 		keyName = "showBloatTimer",
 		name = "Show Bloat Timer",
-		description = "Show the estimated time when Bloat will go down."
+		description = "Show the estimated time when Bloat will go down.",
+		group = "Bloat"
 	)
 	default boolean showBloatTimer()
 	{
@@ -105,7 +105,8 @@ public interface TheatreConfig extends Config
 		position = 5,
 		keyName = "showNyloPillarHealth",
 		name = "Show Nylocas Pillar Health",
-		description = "Show the health bars of the Nylocas pillars."
+		description = "Show the health bars of the Nylocas pillars.",
+		group = "Nylocas"
 	)
 	default boolean showNyloPillarHealth()
 	{
@@ -116,7 +117,8 @@ public interface TheatreConfig extends Config
 		position = 6,
 		keyName = "showNylocasExplosions",
 		name = "Highlight Old Nylocas",
-		description = "Either a timer on the nylo counting down to explosion, or a tile underneath."
+		description = "Either a timer on the nylo counting down to explosion, or a tile underneath.",
+		group = "Nylocas"
 	)
 	default NYLOOPTION showNylocasExplosions()
 	{
@@ -127,53 +129,50 @@ public interface TheatreConfig extends Config
 		position = 7,
 		keyName = "showNylocasAmount",
 		name = "Show Nylocas Amount",
-		description = "An overlay will appear that counts the amount of Nylocas in the room."
+		description = "An overlay will appear that counts the amount of Nylocas in the room.",
+		group = "Nylocas"
 	)
-	default boolean showNylocasAmount() 
+	default boolean showNylocasAmount()
 	{
 		return true;
 	}
 
 	/**
-	@ConfigItem(
-		position = 8,
-		keyName = "showNylocasSpawns",
-		name = "Show Nylocas Pre-spawns",
-		description = "Know the contents of the next upcoming wave."
-	)
-	default boolean showNylocasSpawns() 
-	{
-		return true;
-	}
-
-	@ConfigItem(
-		position = 9,
-		keyName = "highlightNyloRoles",
-		name = "Highlight Nylo Prespawns",
-		description = "Highlights the next upcoming wave based on role. FOR BEGINNERS"
-	)
-	default NYLOCAS highlightNyloRoles() 
-	{
-		return NYLOCAS.NONE;
-	}
-
-	@ConfigItem(
-		position = 10,
-		keyName = "highlightNyloParents",
-		name = "Show Nylo Parents (Un-used)",
-		description = "Highlight the Nylocas that spawn outside the center."
-	)
-	default boolean highlightNyloParents() 
-	{
-		return true;
-	}
-	**/
+	 * @ConfigItem( position = 8,
+	 * keyName = "showNylocasSpawns",
+	 * name = "Show Nylocas Pre-spawns",
+	 * description = "Know the contents of the next upcoming wave."
+	 * )
+	 * default boolean showNylocasSpawns()
+	 * {
+	 * return true;
+	 * }
+	 * @ConfigItem( position = 9,
+	 * keyName = "highlightNyloRoles",
+	 * name = "Highlight Nylo Prespawns",
+	 * description = "Highlights the next upcoming wave based on role. FOR BEGINNERS"
+	 * )
+	 * default NYLOCAS highlightNyloRoles()
+	 * {
+	 * return NYLOCAS.NONE;
+	 * }
+	 * @ConfigItem( position = 10,
+	 * keyName = "highlightNyloParents",
+	 * name = "Show Nylo Parents (Un-used)",
+	 * description = "Highlight the Nylocas that spawn outside the center."
+	 * )
+	 * default boolean highlightNyloParents()
+	 * {
+	 * return true;
+	 * }
+	 **/
 
 	@ConfigItem(
 		position = 11,
 		keyName = "highlightNyloAgros",
 		name = "Show Nylocas Agros",
-		description = "Highlight the Nylocas that are aggressive to the player."
+		description = "Highlight the Nylocas that are aggressive to the player.",
+		group = "Nylocas"
 	)
 	default boolean highlightNyloAgros()
 	{
@@ -184,7 +183,8 @@ public interface TheatreConfig extends Config
 		position = 12,
 		keyName = "showSotetsegAttacks",
 		name = "Show Sotetseg Attacks",
-		description = "Highlight the attacks which Sotetseg throws at you."
+		description = "Highlight the attacks which Sotetseg throws at you.",
+		group = "Sotetseg"
 	)
 	default boolean showSotetsegAttacks()
 	{
@@ -195,7 +195,8 @@ public interface TheatreConfig extends Config
 		position = 13,
 		keyName = "showSotetsegMaze",
 		name = "Mark Sotetseg Maze",
-		description = "Marks the tiles of Sotetseg's maze while in the overworld."
+		description = "Marks the tiles of Sotetseg's maze while in the overworld.",
+		group = "Sotetseg"
 	)
 	default boolean showSotetsegMaze()
 	{
@@ -206,9 +207,10 @@ public interface TheatreConfig extends Config
 		position = 14,
 		keyName = "showSotetsegSolo",
 		name = "Mark Sotetseg Maze (Solo)",
-		description = "Marks the tiles of Sotetseg's maze while in the underworld."
+		description = "Marks the tiles of Sotetseg's maze while in the underworld.",
+		group = "Sotetseg"
 	)
-	default boolean showSotetsegSolo() 
+	default boolean showSotetsegSolo()
 	{
 		return true;
 	}
@@ -217,17 +219,20 @@ public interface TheatreConfig extends Config
 		position = 14,
 		keyName = "markerColor",
 		name = "Sotey Tile Colour",
-		description = "Configures the color of marked tile"
+		description = "Configures the color of marked tile",
+		group = "Sotetseg"
 	)
 	default Color mazeTileColour()
 	{
 		return Color.WHITE;
 	}
+
 	@ConfigItem(
 		position = 15,
 		keyName = "showXarpusHeals",
 		name = "Show Xarpus Heals",
-		description = "Highlights the tiles that Xarpus is healing with."
+		description = "Highlights the tiles that Xarpus is healing with.",
+		group = "Xarpus"
 	)
 	default boolean showXarpusHeals()
 	{
@@ -238,7 +243,8 @@ public interface TheatreConfig extends Config
 		position = 16,
 		keyName = "showXarpusTick",
 		name = "Show Xarpus Turn Tick",
-		description = "Count down the ticks until Xarpus turns their head."
+		description = "Count down the ticks until Xarpus turns their head.",
+		group = "Xarpus"
 	)
 	default boolean showXarpusTick()
 	{
@@ -249,7 +255,8 @@ public interface TheatreConfig extends Config
 		position = 17,
 		keyName = "showVerzikAttacks",
 		name = "Show Verzik Attack Tick",
-		description = "Count down the ticks until Verzik attacks."
+		description = "Count down the ticks until Verzik attacks.",
+		group = "Verzik"
 	)
 	default boolean showVerzikAttacks()
 	{
@@ -260,7 +267,8 @@ public interface TheatreConfig extends Config
 		position = 18,
 		keyName = "showVerzikYellows",
 		name = "Show Yellows Tick",
-		description = "Count down the ticks until Verzik yellow's damage tick."
+		description = "Count down the ticks until Verzik yellow's damage tick.",
+		group = "Verzik"
 	)
 	default boolean showVerzikYellows()
 	{
@@ -271,7 +279,8 @@ public interface TheatreConfig extends Config
 		position = 19,
 		keyName = "showCrabTargets",
 		name = "Show Crab Targets",
-		description = "Shows the target of crabs at Verzik."
+		description = "Shows the target of crabs at Verzik.",
+		group = "Verzik"
 	)
 	default boolean showCrabTargets()
 	{
@@ -282,65 +291,86 @@ public interface TheatreConfig extends Config
 		position = 20,
 		keyName = "VerzikTankTile",
 		name = "Verzik P3 Tile Overlay",
-		description = ""
+		description = "",
+		group = "Verzik"
 	)
 	default boolean VerzikTankTile()
-	{ 
+	{
 		return false;
 	}
-	
+
 	@ConfigItem(
 		position = 22,
 		keyName = "verzikrangeattacks",
 		name = "Show Verzik Range Attacks",
-		description = ""
+		description = "",
+		group = "Verzik"
 	)
 	default boolean verzikRangeAttacks()
-	{ 
-	return true;
+	{
+		return true;
 	}
-	
+
 	@ConfigItem(
 		position = 23,
 		keyName = "extratimers",
 		name = "Show Extra Timers",
-		description = ""
+		description = "",
+		group = "Verzik"
 	)
 	default boolean extraTimers()
 	{
 		return false;
 	}
-	
+
 	@ConfigItem(
 		position = 24,
 		keyName = "p1attacks",
 		name = "Verzik P1 Timer",
-		description = ""
+		description = "",
+		group = "Verzik"
 	)
 	default boolean p1attacks()
 	{
 		return true;
 	}
-	
+
 	@ConfigItem(
 		position = 25,
 		keyName = "p2attacks",
 		name = "Verzik P2 Timer",
-		description = ""
+		description = "",
+		group = "Verzik"
 	)
 	default boolean p2attacks()
 	{
 		return true;
 	}
-	
+
 	@ConfigItem(
 		position = 26,
 		keyName = "p3attacks",
 		name = "Verzik P3 Timer",
-		description = ""
+		description = "",
+		group = "Verzik"
 	)
 	default boolean p3attacks()
 	{
 		return true;
+	}
+
+	enum NYLOCAS
+	{
+		NONE,
+		MAGE,
+		MELEE,
+		RANGER
+	}
+
+	enum NYLOOPTION
+	{
+		NONE,
+		TILE,
+		TIMER
 	}
 }

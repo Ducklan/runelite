@@ -639,6 +639,8 @@ public enum Varbits
 	 */
 	FILTER_SPELLBOOK(6718),
 
+	WINTERTODT_TIMER(7980),
+
 	/**
 	 * POH Building mode (1 = yes, 0 = no)
 	 */

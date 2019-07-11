@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
+ * Copyright (c) 2019, TheStonedTurtle <https://github.com/TheStonedTurtle>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,14 +22,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.rs.api;
+package net.runelite.client.plugins.itemskeptondeath;
 
-import net.runelite.api.MapElementConfig;
-import net.runelite.mapping.Import;
+import lombok.AllArgsConstructor;
+import lombok.Data;
 
-public interface RSMapElementConfig extends RSCacheableNode, MapElementConfig
+@Data
+@AllArgsConstructor
+class ItemStack
 {
-	@Import("getMapIcon")
-	@Override
-	RSSpritePixels getMapIcon(boolean var1);
+	private int id;
+	private int qty;
 }

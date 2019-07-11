@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Adam <Adam@sigterm.info>
+ * Copyright (c) 2019, TheStonedTurtle <https://github.com/TheStonedTurtle>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,74 +22,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.rs.api;
+package net.runelite.client.plugins.itemskeptondeath;
 
-import net.runelite.api.IndexedSprite;
-import net.runelite.mapping.Import;
+import com.google.common.collect.ImmutableSet;
+import java.util.Set;
+import net.runelite.api.ItemID;
 
-public interface RSIndexedSprite extends IndexedSprite
+final class LostIfNotProtected
 {
-	@Import("pixels")
-	@Override
-	byte[] getPixels();
+	private static final Set<Integer> ITEMS = ImmutableSet.of(
+		ItemID.AMULET_OF_THE_DAMNED,
+		ItemID.RING_OF_CHAROS, ItemID.RING_OF_CHAROSA,
+		ItemID.LUNAR_STAFF,
+		ItemID.SHADOW_SWORD,
+		ItemID.KERIS, ItemID.KERISP, ItemID.KERISP_10583, ItemID.KERISP_10584
+	);
 
-	@Import("pixels")
-	@Override
-	void setPixels(byte[] pixels);
-
-	@Import("palette")
-	@Override
-	int[] getPalette();
-
-	@Import("palette")
-	@Override
-	void setPalette(int[] palette);
-
-	@Import("originalWidth")
-	@Override
-	int getOriginalWidth();
-
-	@Import("originalWidth")
-	@Override
-	void setOriginalWidth(int originalWidth);
-
-	@Import("originalHeight")
-	@Override
-	int getOriginalHeight();
-
-	@Import("originalHeight")
-	@Override
-	void setOriginalHeight(int originalHeight);
-
-	@Import("height")
-	@Override
-	int getHeight();
-
-	@Import("height")
-	@Override
-	void setHeight(int height);
-
-	@Import("offsetX")
-	@Override
-	int getOffsetX();
-
-	@Import("offsetX")
-	@Override
-	void setOffsetX(int offsetX);
-
-	@Import("offsetY")
-	@Override
-	int getOffsetY();
-
-	@Import("offsetY")
-	@Override
-	void setOffsetY(int offsetY);
-
-	@Import("width")
-	@Override
-	int getWidth();
-
-	@Import("width")
-	@Override
-	void setWidth(int width);
+	public static boolean isLostIfNotProtected(int id)
+	{
+		return ITEMS.contains(id);
+	}
 }

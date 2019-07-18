@@ -296,6 +296,15 @@ public enum Varbits
 	BLOAT_DOOR(6447),
 
 	/**
+	 * Theatre of Blood orb varbits each number stands for the player's health on a scale of 1-27 (I think), 0 hides the orb
+	 */
+	THEATRE_OF_BLOOD_ORB_1(6442),
+	THEATRE_OF_BLOOD_ORB_2(6443),
+	THEATRE_OF_BLOOD_ORB_3(6444),
+	THEATRE_OF_BLOOD_ORB_4(6445),
+	THEATRE_OF_BLOOD_ORB_5(6446),
+
+	/**
 	 * Nightmare Zone
 	 */
 	NMZ_ABSORPTION(3956),
@@ -639,12 +648,12 @@ public enum Varbits
 	 */
 	FILTER_SPELLBOOK(6718),
 
-	WINTERTODT_TIMER(7980),
-
 	/**
 	 * POH Building mode (1 = yes, 0 = no)
 	 */
-	BUILDING_MODE(2176);
+	BUILDING_MODE(2176),
+
+	WINTERTODT_TIMER(7980);
 
 	/**
 	 * The raw varbit ID.

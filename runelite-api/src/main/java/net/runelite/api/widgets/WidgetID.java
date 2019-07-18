@@ -151,6 +151,7 @@ public class WidgetID
 	public static final int BEGINNER_CLUE_MAP_WIZARDS_TOWER = 356;
 	public static final int SEED_BOX_GROUP_ID = 128;
 	public static final int ITEMS_KEPT_ON_DEATH_GROUP_ID = 4;
+	public static final int SEED_VAULT_GROUP_ID = 631;
 
 	static class WorldMap
 	{
@@ -1087,6 +1088,15 @@ public class WidgetID
 		public static final int OPPONENT_DEF = 17;
 		public static final int OPPONENT_HP = 21;
 	}
+
+	static class SeedVault
+	{
+		static final int TITLE_CONTAINER = 2;
+	}
+}
+
+
+
 
 	public static class DuelResult
 	{

@@ -72,22 +72,22 @@ class OlmPrayAgainstOverlay extends Overlay
 			return null;
 		}
 
-		if (System.currentTimeMillis() < (plugin.getLastPrayTime() + 120000) && plugin.getPrayAgainstOlm() != null)
-		{
-			InfoBoxComponent prayComponent = new InfoBoxComponent();
-			Image prayImg = scaleImg(getPrayerImage(plugin.prayAgainstOlm));
-			prayComponent.setImage(prayImg);
-			prayComponent.setColor(Color.WHITE);
-			prayComponent.setBackgroundColor(client.isPrayerActive(prayAgainst.getPrayer())
-				? ComponentConstants.STANDARD_BACKGROUND_COLOR
-				: NOT_ACTIVATED_BACKGROUND_COLOR);
-			prayComponent.setPreferredSize(new Dimension(40, 40));
-			panelComponent.getChildren().add(prayComponent);
-
-			panelComponent.setPreferredSize(new Dimension(40, 40));
-			panelComponent.setBorder(new Rectangle(0, 0, 0, 0));
-			return panelComponent.render(graphics2D);
-		}
+		//if (System.currentTimeMillis() < (plugin.getLastPrayTime() + 120000) && plugin.getPrayAgainstOlm() != null)
+		//{
+		//	InfoBoxComponent prayComponent = new InfoBoxComponent();
+		//	Image prayImg = scaleImg(getPrayerImage(plugin.prayAgainstOlm));
+		//	prayComponent.setImage(prayImg);
+		//	prayComponent.setColor(Color.WHITE);
+		//	prayComponent.setBackgroundColor(client.isPrayerActive(prayAgainst.getPrayer())
+		//		? ComponentConstants.STANDARD_BACKGROUND_COLOR
+		//		: NOT_ACTIVATED_BACKGROUND_COLOR);
+		//	prayComponent.setPreferredSize(new Dimension(40, 40));
+		//	panelComponent.getChildren().add(prayComponent);
+//
+		//	panelComponent.setPreferredSize(new Dimension(40, 40));
+		//	panelComponent.setBorder(new Rectangle(0, 0, 0, 0));
+		//	return panelComponent.render(graphics2D);
+		//}
 		else
 		{
 			plugin.setPrayAgainstOlm(null);

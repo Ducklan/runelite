@@ -1,3 +1,4 @@
+
 /*
  * Copyright (c) 2016-2017, Adam <Adam@sigterm.info>
  * All rights reserved.
@@ -36,13 +37,17 @@ import java.awt.RenderingHints;
 import java.awt.Stroke;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import net.runelite.api.Actor;
 import net.runelite.api.Client;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCDefinition;
 import net.runelite.api.Perspective;
 import net.runelite.api.Point;
 import net.runelite.api.Prayer;
 import net.runelite.api.TileObject;
 import net.runelite.api.coords.LocalPoint;
+import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.widgets.Widget;
 
@@ -295,7 +300,23 @@ public class OverlayUtil
 		}
 	}
 
-	public static void drawTile(Graphics2D graphics, Client client, WorldPoint point, WorldPoint playerPoint, Color color, int strokeWidth, int outlineAlpha, int fillAlpha)
+	public static void renderClickBox(Graphics2D graphics, Point mousePosition, Area objectClickbox, Color configColor)
+	{
+		if (objectClickbox.contains(mousePosition.getX(), mousePosition.getY()))
+		{
+			graphics.setColor(configColor.darker());
+		}
+		else
+		{
+			graphics.setColor(configColor);
+		}
+
+		graphics.draw(objectClickbox);
+		graphics.setColor(new Color(configColor.getRed(), configColor.getGreen(), configColor.getBlue(), 50));
+		graphics.fill(objectClickbox);
+	}
+
+	public static void drawTiles(Graphics2D graphics, Client client, WorldPoint point, WorldPoint playerPoint, Color color, int strokeWidth, int outlineAlpha, int fillAlpha)
 	{
 		if (point.distanceTo(playerPoint) >= 32)
 		{
@@ -312,6 +333,11 @@ public class OverlayUtil
 		{
 			return;
 		}
+		drawStrokeAndFillPoly(graphics, color, strokeWidth, outlineAlpha, fillAlpha, poly);
+	}
+
+	public static void drawStrokeAndFillPoly(Graphics2D graphics, Color color, int strokeWidth, int outlineAlpha, int fillAlpha, Polygon poly)
+	{
 		graphics.setColor(new Color(color.getRed(), color.getGreen(), color.getBlue(), outlineAlpha));
 		graphics.setStroke(new BasicStroke(strokeWidth));
 		graphics.draw(poly);
@@ -327,5 +353,44 @@ public class OverlayUtil
 		int[] ypoints = {rect.y, rect.y, rect.y + rect.height, rect.y + rect.height};
 
 		return new Polygon(xpoints, ypoints, 4);
+	}
+
+	public static List<WorldPoint> getHitSquares(WorldPoint npcLoc, int npcSize, int thickness, boolean includeUnder)
+	{
+		List<WorldPoint> little = new WorldArea(npcLoc, npcSize, npcSize).toWorldPointList();
+		List<WorldPoint> big = new WorldArea(npcLoc.getX() - thickness, npcLoc.getY() - thickness, npcSize + (thickness * 2), npcSize + (thickness * 2), npcLoc.getPlane()).toWorldPointList();
+		if (!includeUnder)
+		{
+			big.removeIf(little::contains);
+		}
+		return big;
+	}
+
+
+
+	public static void setProgressIcon(Graphics2D graphics, Point point, BufferedImage currentPhaseIcon, int totalWidth, int bgPadding, int currentPosX, Color colorIconBackground, int overlayIconDistance, Color colorIconBorder, Color colorIconBorderFill)
+	{
+		graphics.setStroke(new BasicStroke(2));
+		graphics.setColor(colorIconBackground);
+		graphics.fillOval(
+				point.getX() - totalWidth / 2 + currentPosX - bgPadding,
+				point.getY() - currentPhaseIcon.getHeight() / 2 - overlayIconDistance - bgPadding,
+				currentPhaseIcon.getWidth() + bgPadding * 2,
+				currentPhaseIcon.getHeight() + bgPadding * 2);
+
+		graphics.setColor(colorIconBorder);
+		graphics.drawOval(
+				point.getX() - totalWidth / 2 + currentPosX - bgPadding,
+				point.getY() - currentPhaseIcon.getHeight() / 2 - overlayIconDistance - bgPadding,
+				currentPhaseIcon.getWidth() + bgPadding * 2,
+				currentPhaseIcon.getHeight() + bgPadding * 2);
+
+		graphics.drawImage(
+				currentPhaseIcon,
+				point.getX() - totalWidth / 2 + currentPosX,
+				point.getY() - currentPhaseIcon.getHeight() / 2 - overlayIconDistance,
+				null);
+
+		graphics.setColor(colorIconBorderFill);
 	}
 }

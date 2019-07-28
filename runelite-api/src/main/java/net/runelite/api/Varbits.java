@@ -653,10 +653,16 @@ public enum Varbits
 	 */
 	BUILDING_MODE(2176),
 
-	WINTERTODT_TIMER(7980);
+	WINTERTODT_TIMER(7980),
 
 	/**
 	 * The raw varbit ID.
 	 */
+
+	/**
+	 * 1 is true, 0 is false.
+	 */
+	GAUNTLET_FINAL_ROOM_ENTERED(9177);
+
 	private final int id;
 }

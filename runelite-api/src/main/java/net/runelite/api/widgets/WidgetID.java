@@ -1095,6 +1095,26 @@ public class WidgetID
 		static final int ITEM_CONTAINER = 15;
 		static final int ITEM_TEXT = 16;
 	}
+
+	static class StandardSpellBook
+	{
+		static final int LUMBRIDGE_HOME_TELEPORT = 4;
+	}
+
+	static class AncientSpellBook
+	{
+		static final int EDGEVILLE_HOME_TELEPORT = 98;
+	}
+
+	static class LunarSpellBook
+	{
+		static final int LUNAR_HOME_TELEPORT = 99;
+	}
+
+	static class ArceuusSpellBook
+	{
+		static final int ARCEUUS_HOME_TELEPORT = 143;
+	}
 }
 
 

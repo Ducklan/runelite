@@ -139,6 +139,13 @@ public interface Actor extends Renderable
 	@VisibleForDevtools
 	void setActionFrame(int actionFrame);
 
+	int getSpotAnimation();
+
+	void setSpotAnimation(int graphic);
+
+	void setSpotAnimationFrame(int spotAnimFrame);
+
+
 	/**
 	 * Gets the graphic that is currently on the player.
 	 *

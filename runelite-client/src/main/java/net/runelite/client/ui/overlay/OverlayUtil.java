@@ -38,14 +38,8 @@ import java.awt.Stroke;
 import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.util.List;
-import net.runelite.api.Actor;
-import net.runelite.api.Client;
-import net.runelite.api.NPC;
-import net.runelite.api.NPCDefinition;
-import net.runelite.api.Perspective;
-import net.runelite.api.Point;
-import net.runelite.api.Prayer;
-import net.runelite.api.TileObject;
+
+import net.runelite.api.*;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
@@ -346,6 +340,22 @@ public class OverlayUtil
 	}
 
 
+	public static void renderNpcOverlay(Graphics2D graphics, NPC actor, Color color, int outlineWidth, int outlineAlpha, int fillAlpha, Client client)
+	{
+		int size = 1;
+		NPCComposition composition = actor.getTransformedComposition();
+		if (composition != null)
+		{
+			size = composition.getSize();
+		}
+		LocalPoint lp = actor.getLocalLocation();
+		Polygon tilePoly = Perspective.getCanvasTileAreaPoly(client, lp, size);
+
+		if (tilePoly != null)
+		{
+			OverlayUtil.drawStrokeAndFillPoly(graphics, color, outlineWidth, outlineAlpha, fillAlpha, tilePoly);
+		}
+	}
 
 	private static Polygon rectangleToPolygon(Rectangle rect)
 	{

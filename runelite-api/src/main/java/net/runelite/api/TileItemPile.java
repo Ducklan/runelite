@@ -24,32 +24,40 @@
  */
 package net.runelite.api;
 
-import java.awt.Polygon;
-
 /**
- * Represents a decorative object, such as an object on a wall.
+ * Represents a pile of items held by a tile.
  */
-public interface DecorativeObject extends TileObject
+public interface TileItemPile extends TileObject
 {
-	/**
-	 * Gets the convex hull of the objects model.
-	 *
-	 * @return the convex hull
-	 * @see net.runelite.api.model.Jarvis
-	 */
-	Polygon getConvexHull();
-	Polygon getConvexHull2();
+    /**
+     * Gets the height of the layer.
+     *
+     * @return the height
+     */
+    int getHeight();
 
-	Renderable getRenderable();
-	Renderable getRenderable2();
+    /**
+     * Gets the item at the bottom of the pile.
+     *
+     * @return the bottom item
+     */
+    Renderable getBottom();
 
-	Model getModel1();
+    /**
+     * Gets the item at the middle of the pile.
+     *
+     * @return the middle item
+     */
+    Renderable getMiddle();
 
-	Model getModel2();
+    /**
+     * Gets the item at the top of the pile.
+     *
+     * @return the top item
+     */
+    Renderable getTop();
 
-	int getYOffset();
-
-	int getXOffset();
-
-	int getOrientation();
+    Model getModelBottom();
+    Model getModelMiddle();
+    Model getModelTop();
 }

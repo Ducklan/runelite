@@ -279,4 +279,9 @@ public final class AnimationID
 	public static final int GENERAL_AUTO1 = 7018;
 	public static final int GENERAL_AUTO2 = 7020;
 	public static final int GENERAL_AUTO3 = 7021;
+
+	// Gauntlet Hunleff
+	public static final int HUNLEFF_ATTACK = 8419;
+	public static final int HUNLEFF_TORNADO = 8418;
 }
+

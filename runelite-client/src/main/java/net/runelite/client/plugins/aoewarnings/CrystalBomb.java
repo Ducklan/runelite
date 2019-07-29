@@ -35,6 +35,7 @@ import net.runelite.api.coords.WorldPoint;
 @Getter(AccessLevel.PACKAGE)
 class CrystalBomb
 {
+	private GameObject gameObject;
 	private Instant plantedOn;
 	private Instant lastClockUpdate;
 	private int objectId;
@@ -43,8 +44,9 @@ class CrystalBomb
 
 	CrystalBomb(GameObject gameObject, int startTick)
 	{
-		this.plantedOn = Instant.now();
+		this.gameObject = gameObject;
 		this.objectId = gameObject.getId();
+		this.plantedOn = Instant.now();
 		this.worldLocation = gameObject.getWorldLocation();
 		this.tickStarted = startTick;
 	}

@@ -94,17 +94,18 @@ public class BombOverlay extends Overlay
 	private void drawDangerZone(Graphics2D graphics)
 	{
 		final WorldPoint loc = client.getLocalPlayer().getWorldLocation();
-		plugin.getBombs().forEach((k, v) ->
+		plugin.getBombs().forEach(bomb ->
 		{
-			LocalPoint localLoc = LocalPoint.fromWorld(client, v.getWorldLocation());
+			final LocalPoint localLoc = LocalPoint.fromWorld(client, bomb.getWorldLocation());
+			final WorldPoint worldLoc = bomb.getWorldLocation();
 
 			if (localLoc == null)
 			{
 				return;
 			}
 
-			final double distance_x = Math.abs(v.getWorldLocation().getX() - loc.getX());
-			final double distance_y = Math.abs(v.getWorldLocation().getY() - loc.getY());
+			final double distance_x = Math.abs(worldLoc.getX() - loc.getX());
+			final double distance_y = Math.abs(worldLoc.getY() - loc.getY());
 
 			Color color_code = Color.decode(SAFE);
 
@@ -137,14 +138,14 @@ public class BombOverlay extends Overlay
 			}
 
 			final Instant now = Instant.now();
-			double timeLeft = ((BOMB_DETONATE_TIME - (client.getTickCount() - v.getTickStarted())) * ESTIMATED_TICK_LENGTH) -
-				(now.toEpochMilli() - v.getLastClockUpdate().toEpochMilli()) / 1000.0;
+			double timeLeft = ((BOMB_DETONATE_TIME - (client.getTickCount() - bomb.getTickStarted())) * ESTIMATED_TICK_LENGTH) -
+				(now.toEpochMilli() - bomb.getLastClockUpdate().toEpochMilli()) / 1000.0;
 
 			timeLeft = Math.max(0.0, timeLeft);
 			final String bombTimerString = TIME_LEFT_FORMATTER.format(timeLeft);
 			final int textWidth = graphics.getFontMetrics().stringWidth(bombTimerString);
 			final int textHeight = graphics.getFontMetrics().getAscent();
-			final Point canvasPoint = Perspective.localToCanvas(client, localLoc.getX(), localLoc.getY(), v.getWorldLocation().getPlane());
+			final Point canvasPoint = Perspective.localToCanvas(client, localLoc.getX(), localLoc.getY(), worldLoc.getPlane());
 
 			if (canvasPoint != null)
 			{

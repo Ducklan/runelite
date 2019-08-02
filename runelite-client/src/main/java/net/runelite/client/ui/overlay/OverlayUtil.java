@@ -39,13 +39,19 @@ import java.awt.geom.Area;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
-import net.runelite.api.*;
+import net.runelite.api.Actor;
+import net.runelite.api.Client;
+import net.runelite.api.NPC;
+import net.runelite.api.NPCComposition;
+import net.runelite.api.Perspective;
+import net.runelite.api.Point;
+import net.runelite.api.Prayer;
+import net.runelite.api.TileObject;
+import net.runelite.api.VarClientInt;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
 import net.runelite.api.widgets.Widget;
-
-
 /**
  * Created by Kyle Fricilone on Jun 09, 2017.
  */
@@ -402,5 +408,20 @@ public class OverlayUtil
 				null);
 
 		graphics.setColor(colorIconBorderFill);
+	}
+
+
+	public static Rectangle renderPrayerOverlay(Graphics2D graphics, Client client, Prayer prayer, Color color)
+	{
+		Widget widget = client.getWidget(prayer.getWidgetInfo());
+
+		if (widget == null || client.getVar(VarClientInt.PLAYER_INTERFACE_CONTAINER_OPENED) != 5)
+		{
+			return null;
+		}
+
+		Rectangle bounds = widget.getBounds();
+		renderPolygon(graphics, rectangleToPolygon(bounds), color);
+		return bounds;
 	}
 }

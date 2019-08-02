@@ -289,5 +289,11 @@ public final class AnimationID
 	// Gauntlet Hunleff
 	public static final int HUNLEFF_ATTACK = 8419;
 	public static final int HUNLEFF_TORNADO = 8418;
+	public static final int HUNLEFF_TRAMPLE = 8420;
+
+	//Zalcano
+	public static final int ZALCANO_KNOCKED_DOWN = 8437;
+	public static final int ZALCANO_WAKEUP = 8439;
+	public static final int ZALCANO_ROCK_GLOWING = 8448;
 }
 

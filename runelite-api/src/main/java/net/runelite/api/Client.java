@@ -1651,4 +1651,10 @@ public interface Client extends GameEngine
 	 * Returns the max item index + 1 from cache
 	 */
 	int getItemCount();
+
+	/**
+	 * Sorts the current menu entries in the same way the client does this.
+	 * The last entry will be the left click one after this.
+	 */
+	void sortMenuEntries();
 }

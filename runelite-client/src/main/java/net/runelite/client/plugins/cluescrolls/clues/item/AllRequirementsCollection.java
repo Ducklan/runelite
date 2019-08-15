@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Adam <Adam@sigterm.info>
+ * Copyright (c) 2018, Lotto <https://github.com/devLotto>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,17 +22,58 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.rs;
+package net.runelite.client.plugins.cluescrolls.clues.item;
 
-public class VerificationException extends Exception
+import net.runelite.api.Client;
+import net.runelite.api.Item;
+
+public class AllRequirementsCollection implements ItemRequirement
 {
-	public VerificationException(String message)
+	private String name;
+	private ItemRequirement[] requirements;
+
+	public AllRequirementsCollection(String name, ItemRequirement... requirements)
 	{
-		super(message);
+		this.name = name;
+		this.requirements = requirements;
 	}
 
-	public VerificationException(String message, Throwable cause)
+	public AllRequirementsCollection(ItemRequirement... requirements)
 	{
-		super(message, cause);
+		this("N/A", requirements);
+	}
+
+	@Override
+	public boolean fulfilledBy(int itemId)
+	{
+		for (ItemRequirement requirement : requirements)
+		{
+			if (requirement.fulfilledBy(itemId))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	@Override
+	public boolean fulfilledBy(Item[] items)
+	{
+		for (ItemRequirement requirement : requirements)
+		{
+			if (!requirement.fulfilledBy(items))
+			{
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	@Override
+	public String getCollectiveName(Client client)
+	{
+		return name;
 	}
 }

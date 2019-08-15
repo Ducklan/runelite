@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Adam <Adam@sigterm.info>
+ * Copyright (c) 2019 Abex
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,17 +22,26 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.rs;
+package net.runelite.api;
 
-public class VerificationException extends Exception
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+
+@Retention(RetentionPolicy.SOURCE)
+@Documented
+@Target(ElementType.FIELD)
+@interface ScriptArguments
 {
-	public VerificationException(String message)
-	{
-		super(message);
-	}
+	/**
+	 * The number of int arguments the script takes
+	 */
+	int integer() default 0;
 
-	public VerificationException(String message, Throwable cause)
-	{
-		super(message, cause);
-	}
+	/**
+	 * The number of string arguments the script takes
+	 */
+	int string() default 0;
 }

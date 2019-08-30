@@ -82,9 +82,9 @@ public class ProjectileID
 	public static final int CERB_FIRE = 1247;
 
 	/**
-	 * missing: marble gargoyle, superior dark beast
+	 * missing: superior dark beast
 	 */
-
+	public static final int MARBLE_GARGOYLE_AOE = 1453;
 	/**
 	 * non AOE, regular projectiles
 	 */
@@ -95,13 +95,16 @@ public class ProjectileID
 	public static final int VORKATH_VENOM = 1470;
 	public static final int VORKATH_ICE = 395;
 
+	public static final int SOTETSEG_BOMB = 1604;
+	public static final int SOTETSEG_RANGE = 1607;
+	public static final int SOTETSEG_MAGE = 1606;
+
 	public static final int HYDRA_MAGIC = 1662;
 	public static final int HYDRA_RANGED = 1663;
 	public static final int HYDRA_POISON = 1644;
 	public static final int HYDRA_LIGHTNING = 1664;
 	public static final int HYDRA_LIGHTNING_2 = 1665;
 	public static final int DRAKE_BREATH = 1637;
-
 
 	public static final int HUNLLEF_MAGE_ATTACK = 1707;
 	public static final int HUNLLEF_CORRUPTED_MAGE_ATTACK = 1708;

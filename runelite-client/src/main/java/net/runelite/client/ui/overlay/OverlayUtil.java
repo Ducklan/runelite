@@ -51,6 +51,7 @@ import net.runelite.api.VarClientInt;
 import net.runelite.api.coords.LocalPoint;
 import net.runelite.api.coords.WorldArea;
 import net.runelite.api.coords.WorldPoint;
+import net.runelite.api.vars.InterfaceTab;
 import net.runelite.api.widgets.Widget;
 /**
  * Created by Kyle Fricilone on Jun 09, 2017.
@@ -131,6 +132,15 @@ public class OverlayUtil
 			renderPolygon(graphics, poly, color);
 		}
 
+		Point textLocation = actor.getCanvasTextLocation(graphics, text, actor.getLogicalHeight() + 40);
+		if (textLocation != null)
+		{
+			renderTextLocation(graphics, textLocation, text, color);
+		}
+	}
+
+	public static void renderActorTextOverlay(Graphics2D graphics, Actor actor, String text, Color color)
+	{
 		Point textLocation = actor.getCanvasTextLocation(graphics, text, actor.getLogicalHeight() + 40);
 		if (textLocation != null)
 		{

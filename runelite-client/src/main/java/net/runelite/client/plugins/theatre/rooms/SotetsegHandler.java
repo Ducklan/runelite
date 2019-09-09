@@ -36,7 +36,9 @@ import net.runelite.client.ui.overlay.OverlayUtil;
 public class SotetsegHandler extends RoomHandler
 {
 
-	private static final Set<Integer> SOTE_PROJ = ImmutableSet.of(1604, 1607, 1606);
+	private static final Set<Integer> SOTE_PROJ = ImmutableSet.of(
+			ProjectileID.SOTETSEG_MAGE, ProjectileID.SOTETSEG_RANGE
+	);
 	@Getter(AccessLevel.PUBLIC)
 	private final Map<GroundObject, Tile> redTiles = new LinkedHashMap<>();
 	@Getter(AccessLevel.PUBLIC)

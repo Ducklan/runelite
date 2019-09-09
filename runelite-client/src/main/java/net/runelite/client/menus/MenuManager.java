@@ -28,21 +28,32 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
+import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.MenuAction;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.NPCComposition;
-import net.runelite.api.events.*;
+import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.api.events.MenuOptionClicked;
+import net.runelite.api.events.NpcActionChanged;
+import net.runelite.api.events.PlayerMenuOptionClicked;
+import net.runelite.api.events.PlayerMenuOptionsChanged;
+import net.runelite.api.events.WidgetMenuOptionClicked;
 import net.runelite.api.widgets.WidgetInfo;
 import net.runelite.client.eventbus.EventBus;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.util.Text;
-
-import javax.inject.Inject;
-import javax.inject.Singleton;
-import java.util.*;
-import java.util.regex.Pattern;
 
 @Singleton
 @Slf4j
@@ -212,7 +223,8 @@ public class MenuManager
 
 			if (foundSwap != null)
 			{
-				if (swapTarget.getType() != -1 && newestEntry.getType() != foundSwap.getType())
+				// This is to make things like games necklace and essence pouches show up right
+				if (foundSwap.getType() == MenuAction.EXAMINE_ITEM_BANK_EQ.getId())
 				{
 					int newType = foundSwap.getType();
 
@@ -474,9 +486,9 @@ public class MenuManager
 	}
 
 	/**
-	 * Adds to the map of swaps. - Strict option + target
+	 * Adds to the map of swaps.
 	 */
-	public void addSwap(String option, String target, String option2, String target2)
+	public void addSwap(String option, String target, String option2, String target2, boolean strictOption, boolean strictTarget)
 	{
 		option = Text.standardize(option);
 		target = Text.standardize(target);
@@ -484,8 +496,8 @@ public class MenuManager
 		option2 = Text.standardize(option2);
 		target2 = Text.standardize(target2);
 
-		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target);
-		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2);
+		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target, -1, -1, strictOption, strictTarget);
+		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2, -1, -1, strictOption, strictTarget);
 
 		if (swapTo.equals(swapFrom))
 		{
@@ -494,6 +506,34 @@ public class MenuManager
 		}
 
 		swaps.put(swapFrom, swapTo);
+	}
+
+
+	public void removeSwap(String option, String target, String option2, String target2, boolean strictOption, boolean strictTarget)
+	{
+		option = Text.standardize(option);
+		target = Text.standardize(target);
+
+		option2 = Text.standardize(option2);
+		target2 = Text.standardize(target2);
+
+		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target, -1, -1, strictOption, strictTarget);
+		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2, -1, -1, strictOption, strictTarget);
+
+		removeSwap(swapFrom, swapTo);
+	}
+
+	/**
+	 * Adds to the map of swaps. - Strict option + target
+	 */
+	public void addSwap(String option, String target, String option2, String target2)
+	{
+		addSwap(option, target, option2, target2, false, false);
+	}
+
+	public void removeSwap(String option, String target, String option2, String target2)
+	{
+		removeSwap(option, target, option2, target2, false, false);
 	}
 
 	/**
@@ -560,20 +600,6 @@ public class MenuManager
 		}
 	}
 
-	public void removeSwap(String option, String target, String option2, String target2)
-	{
-		option = Text.standardize(option);
-		target = Text.standardize(target);
-
-		option2 = Text.standardize(option2);
-		target2 = Text.standardize(target2);
-
-		AbstractMenuEntry swapFrom = new AbstractMenuEntry(option, target);
-		AbstractMenuEntry swapTo = new AbstractMenuEntry(option2, target2);
-
-		removeSwap(swapFrom, swapTo);
-	}
-
 	public void removeSwap(AbstractMenuEntry swapFrom, AbstractMenuEntry swapTo)
 	{
 		Set<AbstractMenuEntry> toRemove = new HashSet<>();
@@ -582,6 +608,29 @@ public class MenuManager
 			if (e.getKey().equals(swapFrom) && e.getValue().equals(swapTo))
 			{
 				toRemove.add(e.getKey());
+			}
+		}
+
+		for (AbstractMenuEntry entry : toRemove)
+		{
+			swaps.remove(entry);
+		}
+	}
+
+	/**
+	 * Removes all swaps with target
+	 */
+	public void removeSwaps(String withTarget)
+	{
+		withTarget = Text.standardize(withTarget);
+
+		Set<AbstractMenuEntry> toRemove = new HashSet<>();
+
+		for (AbstractMenuEntry e : swaps.keySet())
+		{
+			if (e.getTarget().equals(withTarget))
+			{
+				toRemove.add(e);
 			}
 		}
 

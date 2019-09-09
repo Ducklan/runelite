@@ -34,10 +34,10 @@ import net.runelite.client.config.Stub;
 public interface RunecraftConfig extends Config
 {
 	@ConfigItem(
-		keyName = "utilStub",
-		name = "Utility",
-		description = "",
-		position = 1
+			keyName = "utilStub",
+			name = "Utility",
+			description = "",
+			position = 1
 	)
 	default Stub utilStub()
 	{
@@ -45,11 +45,11 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "Lavas",
-		name = "Lavas",
-		description = "Swaps Ring of dueling menu entry depending on location, requires fire tiara or RC cape to be worn.",
-		parent = "utilStub",
-		position = 2
+			keyName = "Lavas",
+			name = "Lavas",
+			description = "Swaps Ring of dueling menu entry depending on location, requires fire tiara or RC cape to be worn.",
+			parent = "utilStub",
+			position = 2
 	)
 	default boolean Lavas()
 	{
@@ -57,11 +57,11 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "essPouch",
-		name = "Swap essence pouch",
-		description = "Makes essence pouch left-click fill in bank",
-		parent = "utilStub",
-		position = 3
+			keyName = "essPouch",
+			name = "Swap essence pouch",
+			description = "Makes essence pouch left-click fill in bank",
+			parent = "utilStub",
+			position = 3
 	)
 	default boolean essPouch()
 	{
@@ -69,11 +69,11 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "hightlightDarkMage",
-		name = "Highlight Dark Mage NPC",
-		description = "Configures whether to highlight the Dark Mage when pouches are degraded",
-		position = 4,
-		parent = "utilStub"
+			keyName = "hightlightDarkMage",
+			name = "Highlight Dark Mage NPC",
+			description = "Configures whether to highlight the Dark Mage when pouches are degraded",
+			position = 4,
+			parent = "utilStub"
 	)
 	default boolean hightlightDarkMage()
 	{
@@ -81,11 +81,11 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "degradingNotification",
-		name = "Notify when pouch degrades",
-		description = "Send a notification when a pouch degrades",
-		position = 5,
-		parent = "utilStub"
+			keyName = "degradingNotification",
+			name = "Notify when pouch degrades",
+			description = "Send a notification when a pouch degrades",
+			position = 5,
+			parent = "utilStub"
 	)
 	default boolean degradingNotification()
 	{
@@ -94,10 +94,10 @@ public interface RunecraftConfig extends Config
 
 
 	@ConfigItem(
-		keyName = "riftsStub",
-		name = "Rifts",
-		description = "",
-		position = 6
+			keyName = "riftsStub",
+			name = "Rifts",
+			description = "",
+			position = 6
 	)
 	default Stub riftsStub()
 	{
@@ -105,11 +105,11 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showRifts",
-		name = "Show Rifts in Abyss",
-		description = "Configures whether the rifts in the abyss will be displayed",
-		position = 7,
-		parent = "riftsStub"
+			keyName = "showRifts",
+			name = "Show Rifts in Abyss",
+			description = "Configures whether the rifts in the abyss will be displayed",
+			position = 7,
+			parent = "riftsStub"
 	)
 	default boolean showRifts()
 	{
@@ -117,13 +117,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showAir",
-		name = "Show Air rift",
-		description = "Configures whether to display the air rift",
-		position = 8,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showAir",
+			name = "Show Air rift",
+			description = "Configures whether to display the air rift",
+			position = 8,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showAir()
 	{
@@ -131,13 +131,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showBlood",
-		name = "Show Blood rift",
-		description = "Configures whether to display the Blood rift",
-		position = 9,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showBlood",
+			name = "Show Blood rift",
+			description = "Configures whether to display the Blood rift",
+			position = 9,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showBlood()
 	{
@@ -145,13 +145,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showBody",
-		name = "Show Body rift",
-		description = "Configures whether to display the Body rift",
-		position = 10,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showBody",
+			name = "Show Body rift",
+			description = "Configures whether to display the Body rift",
+			position = 10,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showBody()
 	{
@@ -159,13 +159,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showChaos",
-		name = "Show Chaos rift",
-		description = "Configures whether to display the Chaos rift",
-		position = 11,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showChaos",
+			name = "Show Chaos rift",
+			description = "Configures whether to display the Chaos rift",
+			position = 11,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showChaos()
 	{
@@ -173,13 +173,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showCosmic",
-		name = "Show Cosmic rift",
-		description = "Configures whether to display the Cosmic rift",
-		position = 12,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showCosmic",
+			name = "Show Cosmic rift",
+			description = "Configures whether to display the Cosmic rift",
+			position = 12,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showCosmic()
 	{
@@ -187,13 +187,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showDeath",
-		name = "Show Death rift",
-		description = "Configures whether to display the Death rift",
-		position = 13,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showDeath",
+			name = "Show Death rift",
+			description = "Configures whether to display the Death rift",
+			position = 13,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showDeath()
 	{
@@ -201,13 +201,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showEarth",
-		name = "Show Earth rift",
-		description = "Configures whether to display the Earth rift",
-		position = 14,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showEarth",
+			name = "Show Earth rift",
+			description = "Configures whether to display the Earth rift",
+			position = 14,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showEarth()
 	{
@@ -215,13 +215,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showFire",
-		name = "Show Fire rift",
-		description = "Configures whether to display the Fire rift",
-		position = 15,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showFire",
+			name = "Show Fire rift",
+			description = "Configures whether to display the Fire rift",
+			position = 15,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showFire()
 	{
@@ -229,13 +229,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showLaw",
-		name = "Show Law rift",
-		description = "Configures whether to display the Law rift",
-		position = 16,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showLaw",
+			name = "Show Law rift",
+			description = "Configures whether to display the Law rift",
+			position = 16,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showLaw()
 	{
@@ -243,13 +243,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showMind",
-		name = "Show Mind rift",
-		description = "Configures whether to display the Mind rift",
-		position = 17,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showMind",
+			name = "Show Mind rift",
+			description = "Configures whether to display the Mind rift",
+			position = 17,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showMind()
 	{
@@ -257,13 +257,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showNature",
-		name = "Show Nature rift",
-		description = "Configures whether to display the Nature rift",
-		position = 18,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showNature",
+			name = "Show Nature rift",
+			description = "Configures whether to display the Nature rift",
+			position = 18,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showNature()
 	{
@@ -271,13 +271,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showSoul",
-		name = "Show Soul rift",
-		description = "Configures whether to display the Soul rift",
-		position = 19,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showSoul",
+			name = "Show Soul rift",
+			description = "Configures whether to display the Soul rift",
+			position = 19,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showSoul()
 	{
@@ -285,13 +285,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showWater",
-		name = "Show Water rift",
-		description = "Configures whether to display the Water rift",
-		position = 20,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showWater",
+			name = "Show Water rift",
+			description = "Configures whether to display the Water rift",
+			position = 20,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showWater()
 	{
@@ -299,13 +299,13 @@ public interface RunecraftConfig extends Config
 	}
 
 	@ConfigItem(
-		keyName = "showClickBox",
-		name = "Show Rift click box",
-		description = "Configures whether to display the click box of the rift",
-		position = 21,
-		parent = "riftsStub",
-		hidden = true,
-		unhide = "showRifts"
+			keyName = "showClickBox",
+			name = "Show Rift click box",
+			description = "Configures whether to display the click box of the rift",
+			position = 21,
+			parent = "riftsStub",
+			hidden = true,
+			unhide = "showRifts"
 	)
 	default boolean showClickBox()
 	{

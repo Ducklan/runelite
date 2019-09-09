@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, https://runelitepl.us
+ * Copyright (c) 2018, Kyle <https://github.com/kyleeld>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,20 +23,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.easyscape;
+package net.runelite.client.plugins.easyscape.util;
 
-public enum EssenceMode {
-    RUNECRAFTING("Runecrafting"),
-    ESSENCE_MINING("Essence Mining");
+public enum SkillsNecklaceMode
+{
+	FISHING_GUILD("Fishing Guild"),
+	MINING_GUILD("Mining Guild"),
+	CRAFTING_GUILD("Crafting Guild"),
+	COOKING_GUILD("Cooking Guild"),
+	WOODCUTTING_GUILD("Woodcutting Guild"),
+	FARMING_GUILD("Farming Guild");
 
-    private final String name;
+	private final String name;
 
-    EssenceMode(String name) {
-        this.name = name;
-    }
+	SkillsNecklaceMode(String name)
+	{
+		this.name = name;
+	}
 
-    @Override
-    public String toString() {
-        return name;
-    }
+	@Override
+	public String toString()
+	{
+		return name;
+	}
 }

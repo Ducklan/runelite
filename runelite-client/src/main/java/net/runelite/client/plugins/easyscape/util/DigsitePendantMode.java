@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, https://runelitepl.us
+ * Copyright (c) 2018, Kyle <https://github.com/kyleeld>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,39 +23,24 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package net.runelite.client.plugins.easyscape;
+package net.runelite.client.plugins.easyscape.util;
 
-import lombok.Getter;
-import lombok.Setter;
+public enum DigsitePendantMode
+{
+	DIGSITE("Digsite"),
+	FOSSIL_ISLAND("Fossil Island"),
+	LITHKREN("Lithkren");
 
-public class Swapper {
+	private final String name;
 
-    @Getter
-    private String target;
+	DigsitePendantMode(String name)
+	{
+		this.name = name;
+	}
 
-    @Getter
-    private String optionOne;
-
-    @Getter
-    private String optionTwo;
-
-    @Getter
-    @Setter
-    private int indexOne;
-
-    @Getter
-    @Setter
-    private int indexTwo;
-
-    public Swapper(String target, String optionOne, String optionTwo) {
-        this.target = target;
-        this.optionOne = optionOne;
-        this.optionTwo = optionTwo;
-        this.indexOne = -1;
-        this.indexTwo = -1;
-    }
-
-    public boolean isReady() {
-        return this.indexOne != -1 && this.indexTwo != -1;
-    }
+	@Override
+	public String toString()
+	{
+		return name;
+	}
 }
